@@ -1,0 +1,8 @@
+tempo 120
+track 1
+let notes = [C4, E4, G4, B4]
+let i = 0
+loop (i < len(notes)) {
+    <notes[i]> 1/4
+    i = i + 1
+}

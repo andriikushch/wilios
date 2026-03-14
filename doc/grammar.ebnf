@@ -1,0 +1,277 @@
+(* ============================================================================
+   wilios — Formal Grammar (ISO 14977 EBNF)
+   Source files use the .wilios extension.
+
+   Notation:
+     =       definition
+     ,       concatenation
+     |       alternation
+     [ ... ] optional (zero or one)
+     { ... } repetition (zero or more)
+     ( ... ) grouping
+     "..."   terminal string
+     (*...*) comment
+   ============================================================================ *)
+
+
+(* ============================================================================
+   TOP LEVEL
+   ============================================================================ *)
+
+program         = { top_item } ;
+
+top_item        = import_stmt
+                | stmt
+                | newline
+                ;
+
+(* `import` merges the target file's global_stmts and tracks into this program.
+   Paths are resolved relative to the importing file. Circular imports are
+   silently skipped. Duplicate imports of the same canonical path are skipped. *)
+import_stmt     = "import" , string_lit ;
+
+
+(* ============================================================================
+   SCOPE
+   Statements before any `track` keyword go to global scope by default.
+   `track N` switches the current scope to track N (creating it if needed).
+   `global`  switches the current scope back to global.
+   ============================================================================ *)
+
+track_stmt      = "track" , integer ;
+global_stmt     = "global" ;
+
+
+(* ============================================================================
+   STATEMENTS
+   Statements are separated by newlines. Blank lines and trailing newlines
+   are ignored. Statements inside blocks ({ ... }) are also newline-separated.
+   ============================================================================ *)
+
+stmt            = rest_stmt
+                | chord_stmt
+                | tempo_stmt
+                | track_stmt
+                | global_stmt
+                | pan_stmt
+                | volume_stmt
+                | wave_stmt
+                | attack_stmt
+                | decay_stmt
+                | sustain_stmt
+                | release_stmt
+                | fm_ratio_stmt
+                | fm_depth_stmt
+                | fm_block_stmt
+                | loop_stmt
+                | if_stmt
+                | let_stmt
+                | assign_stmt
+                | index_assign_stmt
+                | call_stmt
+                | return_stmt
+                ;
+
+(* Musical *)
+rest_stmt       = "rest" , duration ;
+chord_stmt      = "<" , expr , { "," , expr } , ">" , duration ;
+                  (* A single pitch in angle brackets is a one-note chord. *)
+
+(* Performance control — accept only literal integers *)
+tempo_stmt      = "tempo"  , integer ;
+pan_stmt        = "pan"    , [ "-" ] , integer ;
+volume_stmt     = "volume" , integer ;
+
+(* Synthesis — waveform and ADSR *)
+wave_stmt       = "wave" , waveform ;
+attack_stmt     = "attack"  , expr ;
+decay_stmt      = "decay"   , expr ;
+sustain_stmt    = "sustain" , expr ;
+release_stmt    = "release" , expr ;
+
+(* Legacy 2-op FM — accept only a literal numeric value *)
+fm_ratio_stmt   = "fm_ratio" , numeric ;
+fm_depth_stmt   = "fm_depth" , numeric ;
+
+(* Multi-operator FM block *)
+fm_block_stmt   = "fm" , "{" , { newline | fm_item } , "}" ;
+fm_item         = algorithm_decl | op_decl ;
+
+algorithm_decl  = "algorithm" , "[" , [ routing_edge , { "," , routing_edge } ] , "]" ;
+routing_edge    = integer , "->" , integer ;
+                  (* Self-routing (N->N) encodes operator self-feedback. *)
+
+op_decl         = "op" , integer , "{" , { newline | op_field } , "}" ;
+op_field        = ( "ratio"   , expr )
+                | ( "level"   , expr )
+                | ( "wave"    , waveform )
+                | ( "attack"  , expr )
+                | ( "decay"   , expr )
+                | ( "sustain" , expr )
+                | ( "release" , expr )
+                ;
+                (* Missing ratio defaults to 1.0; missing level defaults to 1.0.
+                   Missing ADSR fields default to the engine-wide track settings. *)
+
+(* Control flow *)
+loop_stmt       = "loop" , "(" , expr , ")" , block ;
+                  (* Condition is re-evaluated before each iteration. *)
+if_stmt         = "if" , "(" , expr , ")" , block
+                  , [ { newline } , "else" , block ] ;
+
+block           = "{" , { newline | stmt } , "}" ;
+
+(* Variables *)
+let_stmt        = "let" , ident , "=" , expr ;
+assign_stmt     = ident , "=" , expr ;
+index_assign_stmt = ident , "[" , expr , "]" , "=" , expr ;
+
+(* Functions *)
+call_stmt       = ident , "(" , [ expr , { "," , expr } ] , ")" ;
+return_stmt     = "return" , expr ;
+
+
+(* ============================================================================
+   DURATION
+   Two syntactic paths are available:
+
+     Path A — literal duration token (supports dotted notation):
+               beats "/" division [ "." ]
+               where beats and division are literal integers, resolved at
+               lex time into a single Duration token.
+
+     Path B — computed duration (no dotted form):
+               ( ident | integer ) "/" ( ident | integer )
+               where beats and division may be variable names, resolved at
+               parse time into a Duration with Expr nodes.
+   ============================================================================ *)
+
+duration        = duration_lit | duration_var ;
+
+duration_lit    = integer , "/" , integer , [ "." ] ;
+                  (* Tokenized as a single Token::Duration at lex time.
+                     Append "." for a 1.5× dotted rhythm (e.g. 1/4. = 3/8). *)
+
+duration_var    = ( ident | integer ) , "/" , ( ident | integer ) ;
+                  (* Parsed from individual tokens. Dotted form not available. *)
+
+
+(* ============================================================================
+   EXPRESSIONS
+   Pratt (top-down operator precedence) parser.
+   Precedence levels (low → high):
+
+     1  ||   logical or         (left-associative)
+     2  &&   logical and        (left-associative)
+     3  == != equality          (left-associative)
+     4  < <= > >=  relational   (left-associative)
+     5  + -  additive           (left-associative)
+     6  * / % multiplicative    (left-associative)
+     7  f()  function call      (left-associative, postfix)
+
+   Binding powers as implemented (l_bp, r_bp):
+     ||           (1, 2)
+     &&           (3, 4)
+     == !=        (5, 6)
+     < <= > >=    (7, 8)
+     + -          (9, 10)
+     * / %        (11, 12)
+     ( [call]     (13, 0)
+     [ [index]    (13, 0)
+   ============================================================================ *)
+
+expr            = or_expr ;
+
+or_expr         = and_expr , { "||" , and_expr } ;
+and_expr        = eq_expr  , { "&&" , eq_expr  } ;
+eq_expr         = cmp_expr , { ( "==" | "!=" ) , cmp_expr } ;
+cmp_expr        = add_expr , { ( "<" | "<=" | ">" | ">=" ) , add_expr } ;
+add_expr        = mul_expr , { ( "+" | "-" )  , mul_expr  } ;
+mul_expr        = call_expr, { ( "*" | "/" | "%" ) , call_expr } ;
+call_expr       = primary  , { "(" , [ expr , { "," , expr } ] , ")"
+                             | "[" , expr , "]" } ;
+                  (* postfix () for function calls; postfix [] for array indexing *)
+
+primary         = integer
+                | float
+                | bool
+                | ident
+                | pitch
+                | chord_expr
+                | array_expr
+                | grouped_expr
+                | func_expr
+                | unary_neg
+                | unary_plus
+                ;
+
+chord_expr      = "<" , expr , { "," , expr } , ">" ;
+array_expr      = "[" , [ expr , { "," , expr } ] , "]" ;
+grouped_expr    = "(" , expr , ")" ;
+func_expr       = "func" , "(" , [ ident , { "," , ident } ] , ")" , block ;
+unary_neg       = "-" , expr ;
+unary_plus      = "+" , expr ;         (* identity — evaluates the operand unchanged *)
+
+(* NOTE: The `!` (logical not) operator is defined in the AST (UnaryOp::Not)
+   and the Token enum (Token::Not) but is NOT handled by the primary expression
+   parser. `!expr` cannot currently be written in wilios source code. *)
+
+
+(* ============================================================================
+   TERMINALS
+   ============================================================================ *)
+
+waveform        = "sine" | "square" | "saw" | "tri" ;
+
+(* Pitch: uppercase letter, optional accidental, single-digit octave.
+   All of sine, square, saw, tri, and the keyword set are reserved and
+   cannot be used as identifiers. Pitch letters (A–G) are uppercase and
+   are therefore distinct from lowercase identifiers. *)
+pitch           = letter , [ accidental ] , octave_digit ;
+letter          = "A" | "B" | "C" | "D" | "E" | "F" | "G" ;
+accidental      = "#" | "b" ;
+octave_digit    = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+(* Identifiers must start with a lowercase letter; subsequent characters may
+   be lowercase letters, underscores, or digits. A leading underscore or digit
+   is not allowed as the first character. *)
+ident           = lowercase , { lowercase | "_" | digit } ;
+lowercase       = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
+                | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
+                | "u" | "v" | "w" | "x" | "y" | "z" ;
+digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+(* A Duration literal is tokenized as one Token::Duration.
+   beats and division are run-of-digits (no leading zeros required).
+   The optional trailing "." makes the duration dotted (1.5× length). *)
+integer         = digit , { digit } ;
+float           = digit , { digit } , "." , digit , { digit } ;
+numeric         = integer | float ;
+
+bool            = "true" | "false" ;
+
+string_lit      = '"' , { string_char } , '"' ;
+string_char     = (* any character except '"' and '\' *)
+                | "\" , ( "n" | "t" | "\" | '"' ) ;
+                  (* Supported escapes: \n  \t  \\  \" *)
+
+newline         = "\n" ;
+
+(* Single-line comments start with "//" and extend to end of line.
+   They are stripped by the lexer and produce no tokens. *)
+comment         = "//" , { (* any character except newline *) } , newline ;
+
+
+(* ============================================================================
+   RESERVED KEYWORDS
+   The following identifiers are reserved and cannot be used as variable or
+   function names:
+
+   Control:   track  global  loop  if  else  let  func  return
+   Musical:   tempo  volume  pan   rest
+   Synth:     wave   attack  decay  sustain  release  fm_ratio  fm_depth
+   FM block:  fm     op     algorithm  level  ratio
+   Waveforms: sine   square  saw  tri
+   Import:    import
+   Literals:  true   false
+   ============================================================================ *)

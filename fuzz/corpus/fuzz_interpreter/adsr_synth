@@ -1,0 +1,9 @@
+tempo 120
+track 1
+attack 5
+decay 50
+sustain 80
+release 200
+wave square
+<C4> 1/4
+<E4> 1/8

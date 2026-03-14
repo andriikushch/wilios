@@ -1,0 +1,5 @@
+tempo 120
+track 1
+let n = rand(1, 4)
+let p = transpose(<C4>, 7)
+<C4> 1/4

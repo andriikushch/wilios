@@ -1,0 +1,4 @@
+let notes = [C4, E4, G4, B4]
+let chords = [<C4, E4, G4>, <F4, A4, C5>]
+let p = notes[2]
+let c = chords[0]

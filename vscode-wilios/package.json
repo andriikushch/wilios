@@ -1,0 +1,30 @@
+{
+  "name": "vscode-wilios",
+  "displayName": "wilios",
+  "description": "Syntax highlighting for the wilios music DSL (.wilios files)",
+  "version": "0.1.0",
+  "publisher": "wilios",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "wilios",
+        "aliases": ["wilios"],
+        "extensions": [".wilios"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "wilios",
+        "scopeName": "source.wilios",
+        "path": "./syntaxes/wilios.tmLanguage.json"
+      }
+    ]
+  }
+}

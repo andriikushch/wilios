@@ -1,0 +1,8 @@
+tempo 120
+track 1
+let chords = [<C4, E4, G4>, <F4, A4, C5>, <G4, B4, D5>]
+let i = 0
+loop (i < len(chords)) {
+    <chords[i]> 1/2
+    i = i + 1
+}

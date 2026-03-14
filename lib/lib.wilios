@@ -1,0 +1,125 @@
+// synt-lib.troix — FM synthesis presets
+//
+// Usage: import "synt-lib.troix" then call a patch function inside a track
+// to configure FM synthesis for subsequent notes.
+//
+// Each function sets the track's fm block and waveform.
+// Call it once per track before playing notes.
+
+// E.PIANO 1 — Algorithm 5
+// Two independent 2-op pairs summed as carriers.
+// High-ratio (14x) modulators create the characteristic bell "ting" attack.
+// Purely percussive: no sustain, long decay.
+let epiano = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 4->3]
+        op 1 { ratio 1.0   level 0.5  attack 10  decay 1800  sustain 0   release 400 }
+        op 2 { ratio 14.0  level 0.7  attack 0   decay 600   sustain 0   release 150 }
+        op 3 { ratio 1.0   level 0.25 attack 10  decay 2500  sustain 0   release 500 }
+        op 4 { ratio 14.0  level 0.4  attack 0   decay 400   sustain 0   release 100 }
+    }
+}
+
+// BRASS 1 — brass stab
+// Same-ratio modulator at high depth decays quickly, creating the
+// bright "blat" attack that settles into a warm sustained tone.
+let brass = func() {
+    wave sine
+    fm {
+        algorithm [2->1]
+        op 1 { ratio 1.0  level 1.0  attack 25  decay 0    sustain 100  release 200 }
+        op 2 { ratio 1.0  level 2.5  attack 10  decay 250  sustain 25   release 100 }
+    }
+}
+
+// BASS 1 — deep FM bass
+// Sub-octave modulator (ratio 0.5) at high depth produces a thick,
+// punchy transient that quickly falls away for a clean low-end body.
+let bass = func() {
+    wave sine
+    fm {
+        algorithm [2->1]
+        op 1 { ratio 1.0  level 1.0  attack 5   decay 600  sustain 50  release 250 }
+        op 2 { ratio 0.5  level 2.0  attack 0   decay 300  sustain 0   release 80  }
+    }
+}
+
+// MARIMBA — bell/mallet timbre
+// Two inharmonic modulators (3.5x and 5x) feeding one carrier.
+// Inharmonic ratios give a metallic, resonant bell quality.
+// Fast decay, no sustain.
+let marimba = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0  level 1.0  attack 5   decay 700  sustain 0  release 300 }
+        op 2 { ratio 3.5  level 1.8  attack 0   decay 350  sustain 0  release 100 }
+        op 3 { ratio 5.0  level 0.6  attack 0   decay 200  sustain 0  release 80  }
+    }
+}
+
+// STRINGS — lush slow pad
+// Two 2-op pairs: fundamental and octave carriers, both with slow
+// attacks for a smooth swell. Gentle modulation adds harmonic warmth.
+let strings = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 4->3]
+        op 1 { ratio 1.0  level 0.5  attack 500  decay 0  sustain 100  release 800  }
+        op 2 { ratio 1.0  level 0.3  attack 300  decay 0  sustain 80   release 600  }
+        op 3 { ratio 2.0  level 0.25 attack 600  decay 0  sustain 90   release 1000 }
+        op 4 { ratio 3.0  level 0.2  attack 400  decay 0  sustain 70   release 700  }
+    }
+}
+
+// KICK — bass drum
+// Fast-decaying high-depth sub-octave modulator creates the characteristic
+// pitch-drop thud. Best triggered at a low note (e.g. <B1>).
+let kick = func() {
+    wave sine
+    fm {
+        algorithm [2->1]
+        op 1 { ratio 1.0   level 1.0  attack 5  decay 350  sustain 0  release 50 }
+        op 2 { ratio 0.25  level 9.0  attack 0  decay 60   sustain 0  release 20 }
+    }
+}
+
+// SNARE — snare drum
+// Two inharmonic modulators (11x and 17x) on a square carrier produce
+// a bright, noise-like crack. Best triggered at a mid note (e.g. <A3>).
+let snare = func() {
+    wave square
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 180  sustain 0  release 40 }
+        op 2 { ratio 11.0  level 4.0  attack 0  decay 90   sustain 0  release 25 }
+        op 3 { ratio 17.0  level 2.5  attack 0  decay 70   sustain 0  release 20 }
+    }
+}
+
+// HIHAT_C — closed hi-hat
+// Two high-ratio inharmonic modulators give a short metallic click.
+// Best triggered at a high note (e.g. <F5>).
+let hihat_c = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 55   sustain 0  release 15 }
+        op 2 { ratio 13.0  level 5.0  attack 0  decay 30   sustain 0  release 10 }
+        op 3 { ratio 17.5  level 4.0  attack 0  decay 25   sustain 0  release 10 }
+    }
+}
+
+// HIHAT_O — open hi-hat
+// Same topology as hihat_c but longer decays for the sustained "tsss".
+// Best triggered at a high note (e.g. <F5>).
+let hihat_o = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 400  sustain 0  release 200 }
+        op 2 { ratio 13.0  level 5.0  attack 0  decay 180  sustain 0  release 80  }
+        op 3 { ratio 17.5  level 4.0  attack 0  decay 150  sustain 0  release 60  }
+    }
+}

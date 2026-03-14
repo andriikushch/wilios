@@ -1,0 +1,10 @@
+tempo 120
+track 1
+let scale = [C4, D4, E4, F4, G4]
+scale[0] = B3
+scale[4] = A4
+let i = 0
+loop (i < len(scale)) {
+    <scale[i]> 1/4
+    i = i + 1
+}

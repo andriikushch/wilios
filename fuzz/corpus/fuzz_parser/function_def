@@ -1,0 +1,6 @@
+let f = func(x) {
+    return x
+}
+let g = func(a, b) {
+    return a
+}

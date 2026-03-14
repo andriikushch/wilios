@@ -1,0 +1,9 @@
+tempo 120
+track 1
+let a = [10, 20, 30, 40, 50]
+let n = len(a)
+let i = 0
+loop (i < n) {
+    <C4> 1/4
+    i = i + 1
+}

@@ -1,0 +1,238 @@
+{
+  "name": "wilios",
+  "scopeName": "source.wilios",
+  "fileTypes": [
+    "wilios"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keyword-let"
+    },
+    {
+      "include": "#keyword-func"
+    },
+    {
+      "include": "#keywords-control"
+    },
+    {
+      "include": "#keywords-musical"
+    },
+    {
+      "include": "#keywords-synth"
+    },
+    {
+      "include": "#keywords-fm-block"
+    },
+    {
+      "include": "#keywords-waveforms"
+    },
+    {
+      "include": "#keywords-import"
+    },
+    {
+      "include": "#keywords-literals"
+    },
+    {
+      "include": "#chord-expression"
+    },
+    {
+      "include": "#pitches"
+    },
+    {
+      "include": "#durations"
+    },
+    {
+      "include": "#floats"
+    },
+    {
+      "include": "#integers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#function-calls"
+    },
+    {
+      "include": "#identifiers"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.wilios",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.wilios",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.wilios",
+          "match": "\\\\[nrt\\\\\"]"
+        },
+        {
+          "name": "invalid.illegal.escape.wilios",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keyword-let": {
+      "name": "keyword.other.declaration.wilios",
+      "match": "\\b(let)\\b"
+    },
+    "keyword-func": {
+      "name": "keyword.other.function.wilios",
+      "match": "\\b(func)\\b"
+    },
+    "keywords-control": {
+      "name": "keyword.control.wilios",
+      "match": "\\b(track|global|loop|if|else|return)\\b"
+    },
+    "keywords-musical": {
+      "name": "keyword.other.musical.wilios",
+      "match": "\\b(tempo|volume|pan|rest)\\b"
+    },
+    "keywords-synth": {
+      "name": "keyword.other.synth.wilios",
+      "match": "\\b(wave|attack|decay|sustain|release|fm_ratio|fm_depth)\\b"
+    },
+    "keywords-fm-block": {
+      "name": "keyword.other.fm.wilios",
+      "match": "\\b(fm|op|algorithm|level|ratio)\\b"
+    },
+    "keywords-waveforms": {
+      "name": "support.constant.waveform.wilios",
+      "match": "\\b(sine|square|saw|tri)\\b"
+    },
+    "keywords-import": {
+      "name": "keyword.control.import.wilios",
+      "match": "\\b(import)\\b"
+    },
+    "keywords-literals": {
+      "name": "constant.language.boolean.wilios",
+      "match": "\\b(true|false)\\b"
+    },
+    "chord-expression": {
+      "name": "meta.chord.wilios",
+      "begin": "<(?=[A-G])",
+      "end": ">",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.chord.begin.wilios"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.chord.end.wilios"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#pitches"
+        },
+        {
+          "name": "punctuation.separator.comma.wilios",
+          "match": ","
+        }
+      ]
+    },
+    "pitches": {
+      "name": "constant.language.pitch.wilios",
+      "match": "\\b([A-G][#b]?[0-9])\\b"
+    },
+    "durations": {
+      "name": "constant.numeric.duration.wilios",
+      "match": "\\b([0-9]+\\/[0-9]+\\.?)\\b"
+    },
+    "floats": {
+      "name": "constant.numeric.float.wilios",
+      "match": "\\b([0-9]+\\.[0-9]+)\\b"
+    },
+    "integers": {
+      "name": "constant.numeric.integer.wilios",
+      "match": "\\b([0-9]+)\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.wilios",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.comparison.wilios",
+          "match": "(==|!=|<=|>=)"
+        },
+        {
+          "name": "keyword.operator.logical.wilios",
+          "match": "(&&|\\|\\|)"
+        },
+        {
+          "name": "keyword.operator.assignment.wilios",
+          "match": "(?<![=!<>])=(?!=)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.wilios",
+          "match": "[+\\-*%]"
+        },
+        {
+          "name": "keyword.operator.arithmetic.wilios",
+          "match": "(?<![0-9])\\/(?![0-9])"
+        }
+      ]
+    },
+    "function-calls": {
+      "match": "\\b([a-z_][a-z_0-9]*)\\b(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.wilios"
+        }
+      }
+    },
+    "identifiers": {
+      "name": "variable.other.wilios",
+      "match": "\\b[a-z_][a-z_0-9]*\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.block.begin.wilios",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.block.end.wilios",
+          "match": "\\}"
+        },
+        {
+          "name": "punctuation.section.parens.begin.wilios",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.section.parens.end.wilios",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.section.brackets.begin.wilios",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.section.brackets.end.wilios",
+          "match": "\\]"
+        },
+        {
+          "name": "punctuation.separator.comma.wilios",
+          "match": ","
+        }
+      ]
+    }
+  }
+}

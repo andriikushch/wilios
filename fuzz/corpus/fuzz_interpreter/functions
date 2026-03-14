@@ -1,0 +1,5 @@
+tempo 120
+track 1
+let f = func(x) { return x }
+let n = f(3)
+<C4> 1/4
