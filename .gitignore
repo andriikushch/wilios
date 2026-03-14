@@ -1,2 +1,5 @@
 /target
 .devcontainer
+CLAUDE.md
+/fuzz/target
+/fuzz/artifacts
