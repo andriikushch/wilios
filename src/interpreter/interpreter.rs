@@ -61,6 +61,7 @@ pub struct TrackContext {
     pub fm_ratio: f32,
     pub fm_depth: f32,
     pub fm_block: Option<FmBlockConfig>,
+    pub swing: f32,
 
     pub env_vars: HashMap<Ident, Value>,
     pub saved_envs: Vec<HashMap<Ident, Value>>,
@@ -236,6 +237,7 @@ impl Interpreter {
                 fm_ratio: 1.0,
                 fm_depth: 0.0,
                 fm_block: None,
+                swing: 50.0,
                 pc: 0,
                 env_vars: initial_env,
                 saved_envs: Vec::new(),
@@ -269,6 +271,7 @@ impl Interpreter {
                     fm_ratio: 1.0,
                     fm_depth: 0.0,
                     fm_block: None,
+                    swing: 50.0,
                     pc: 0,
                     env_vars: global_env.clone(),
                     saved_envs: Vec::new(),
@@ -407,7 +410,8 @@ impl Interpreter {
     ) -> Result<bool, RuntimeError> {
         match stmt {
             Stmt::Chord { duration, pitches } => {
-                let dur_ms = Self::eval_duration_ms(duration, ctx)?;
+                let raw_ms = Self::eval_duration_ms(duration, ctx)?;
+                let dur_ms = Self::apply_swing(raw_ms, ctx);
 
                 if ctx.time < until_ms {
                     let mut resolved: Vec<Pitch> = Vec::new();
@@ -448,7 +452,8 @@ impl Interpreter {
                 Ok(false)
             }
             Stmt::Rest { duration } => {
-                let dur_ms = Self::eval_duration_ms(duration, ctx)?;
+                let raw_ms = Self::eval_duration_ms(duration, ctx)?;
+                let dur_ms = Self::apply_swing(raw_ms, ctx);
                 ctx.time += dur_ms;
                 Ok(false)
             }
@@ -549,6 +554,21 @@ impl Interpreter {
                 if let Value::Float(f) = Self::eval(expr, ctx)? {
                     ctx.fm_depth = f;
                 }
+                Ok(false)
+            }
+            Stmt::Swing(expr) => {
+                let val = match Self::eval(expr, ctx)? {
+                    Value::Int(n) => n as f32,
+                    Value::Float(f) => f,
+                    _ => return Err(RuntimeError("swing: expected a numeric value".into())),
+                };
+                if val < 50.0 || val > 100.0 {
+                    return Err(RuntimeError(format!(
+                        "swing: value {:.1} is out of range [50, 100]",
+                        val
+                    )));
+                }
+                ctx.swing = val;
                 Ok(false)
             }
             Stmt::FmBlock { ops, algorithm } => {
@@ -734,6 +754,29 @@ impl Interpreter {
             }
             _ => Ok(false),
         }
+    }
+
+    fn apply_swing(raw_ms: u64, ctx: &TrackContext) -> u64 {
+        if (ctx.swing - 50.0).abs() < f32::EPSILON {
+            return raw_ms;
+        }
+        let bpm = ctx.tempo.bpm as f32;
+        if bpm == 0.0 {
+            return raw_ms;
+        }
+        let ms_per_beat = 60_000.0 / bpm;
+        let eighth_ms = ms_per_beat / 2.0;
+        if (raw_ms as f32) < eighth_ms {
+            return raw_ms;
+        }
+        let num_eighths = (raw_ms as f32 / eighth_ms).round() as u64;
+        let start_slot = (ctx.time as f32 / eighth_ms).round() as u64;
+        let ratio = ctx.swing / 100.0;
+        let long_ms = (ms_per_beat * ratio).round() as u64;
+        let short_ms = (ms_per_beat * (1.0 - ratio)).round() as u64;
+        (0..num_eighths)
+            .map(|i| if (start_slot + i) % 2 == 0 { long_ms } else { short_ms })
+            .sum()
     }
 
     fn eval_duration_ms(duration: &Duration, ctx: &mut TrackContext) -> Result<u64, RuntimeError> {

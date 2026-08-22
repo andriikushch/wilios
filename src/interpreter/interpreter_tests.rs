@@ -562,3 +562,126 @@ fn interpreter_array_index_assign_out_of_bounds_error() {
     let result = interp.schedule_until(0, 1_000_000_000);
     assert!(result.is_err());
 }
+
+// =========================================================
+// SWING TESTS
+// =========================================================
+
+fn interp_events(src: &str) -> Vec<crate::interpreter::event::Event> {
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    interp.schedule_until(0, 1_000_000_000).unwrap()
+}
+
+#[test]
+fn swing_default_50_eighth_notes_are_equal() {
+    // At swing 50 (default), two 8th notes at 120 BPM should each be 250ms
+    let src = "track 1\ntempo 120\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 250, "first 8th at swing 50 should be 250ms");
+    assert_eq!(*d2, 250, "second 8th at swing 50 should be 250ms");
+}
+
+#[test]
+fn swing_67_first_eighth_is_long() {
+    // At 120 BPM: ms_per_beat=500ms
+    // long = round(500 * 0.67) = 335ms, short = round(500 * 0.33) = 165ms
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 335, "first (on-beat) 8th at swing 67 should be 335ms");
+    assert_eq!(*d2, 165, "second (off-beat) 8th at swing 67 should be 165ms");
+}
+
+#[test]
+fn swing_two_eighths_sum_to_quarter() {
+    // Two swung 8ths must sum to one quarter note (500ms at 120 BPM)
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    // Second note starts at d1, so d1 = events[1].at - events[0].at
+    let d1 = events[1].at - events[0].at;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(d1 + d2, 500, "two swung 8ths must sum to one quarter (500ms at 120 BPM)");
+}
+
+#[test]
+fn swing_quarter_note_unaffected() {
+    // A quarter note spans 2 slots (long+short), so it is always 500ms regardless of swing
+    let src = "track 1\ntempo 120\nswing 75\n<C4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { duration, .. } = &events[0].kind;
+    assert_eq!(*duration, 500, "quarter note should be unaffected by swing");
+}
+
+#[test]
+fn swing_sub_eighth_unaffected() {
+    // A 16th note (125ms at 120 BPM) spans 0 eighth slots, so it passes through unchanged
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/16";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { duration, .. } = &events[0].kind;
+    assert_eq!(*duration, 125, "1/16 note should be unchanged by swing");
+}
+
+#[test]
+fn swing_rest_advances_phase() {
+    // A rest on slot 0 moves to slot 1; the next note should be the short (off-beat) 8th
+    let src = "track 1\ntempo 120\nswing 67\nrest 1/8\n<C4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { duration, .. } = &events[0].kind;
+    assert_eq!(*duration, 165, "note after a swung rest should be the short off-beat 8th");
+}
+
+#[test]
+fn swing_float_form_accepted() {
+    // swing 67.0 (float literal) should work identically to swing 67
+    let src = "track 1\ntempo 120\nswing 67.0\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    assert_eq!(*d1, 335);
+}
+
+#[test]
+fn swing_out_of_range_low_errors() {
+    let src = "track 1\ntempo 120\nswing 49\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let result = interp.schedule_until(0, 1_000_000_000);
+    assert!(result.is_err(), "swing 49 should be a RuntimeError");
+}
+
+#[test]
+fn swing_out_of_range_high_errors() {
+    let src = "track 1\ntempo 120\nswing 101\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let result = interp.schedule_until(0, 1_000_000_000);
+    assert!(result.is_err(), "swing 101 should be a RuntimeError");
+}
+
+#[test]
+fn swing_100_max_swing() {
+    // At swing 100: long_ms = round(500 * 1.0) = 500ms, short_ms = round(500 * 0.0) = 0ms
+    // First 8th starts at slot 0 (even) → 500ms; ctx.time → 500ms
+    // Second 8th starts at slot round(500/250)=2 (even) → also 500ms
+    // (At extreme swing the long note lands back on an even slot each time)
+    let src = "track 1\ntempo 120\nswing 100\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 500);
+    assert_eq!(*d2, 500);
+}

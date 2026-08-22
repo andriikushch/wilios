@@ -45,7 +45,7 @@ test-all: test grammar-check
 	cargo +nightly fuzz run fuzz_interpreter -- -max_total_time=30
 
 example:
-	cargo run -- examples/example_1.wilios
+	cargo run -- examples/example_swing.wilios
 
 grammar:
 	python3 tools/gen_grammar.py

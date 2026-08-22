@@ -354,6 +354,28 @@ pan -64     // left of centre
 pan 127     // hard right
 ```
 
+#### Swing
+
+Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. Accepts an integer or float literal.
+
+```
+swing integer_or_float
+```
+
+Valid range: `50` (straight, default) to `100` (maximum swing). Values outside this range are a runtime error.
+
+```wilios
+tempo 120
+swing 67     // classic jazz swing: 8ths play as 335ms + 165ms
+<C4> 1/8    // on-beat → 335ms
+<D4> 1/8    // off-beat → 165ms
+<E4> 1/4    // quarter note → 500ms (always unchanged)
+
+swing 50     // back to straight
+```
+
+See [synthesis.md — Swing](synthesis.md#swing) for a detailed description and examples.
+
 ---
 
 ### 5.3 Variables
@@ -927,7 +949,7 @@ The following identifiers are reserved and **cannot** be used as variable or fun
 | Variables / functions | `let` `func` |
 | Scope | `track` `global` |
 | Musical | `tempo` `volume` `pan` `rest` |
-| Synthesis | `wave` `attack` `decay` `sustain` `release` `fm_ratio` `fm_depth` |
+| Synthesis | `wave` `attack` `decay` `sustain` `release` `fm_ratio` `fm_depth` `swing` |
 | FM block | `fm` `op` `algorithm` `level` `ratio` |
 | Waveforms | `sine` `square` `saw` `tri` |
 | Import | `import` |

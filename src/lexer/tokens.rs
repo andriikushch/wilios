@@ -24,6 +24,7 @@ pub enum Token {
     Release,
     FmRatio,
     FmDepth,
+    Swing,
 
     // FM block keywords
     Fm,

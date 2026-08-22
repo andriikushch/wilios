@@ -1,0 +1,35 @@
+let scale = func() {
+    <C4> 1/8
+    <D4> 1/8
+    <E4> 1/8
+    <F4> 1/8
+    <G4> 1/8
+    <A4> 1/8
+    <B4> 1/8
+    <C5> 1/4
+
+    <C5> 1/8
+    <B4> 1/8
+    <A4> 1/8
+    <G4> 1/8
+    <F4> 1/8
+    <E4> 1/8
+    <D4> 1/8
+    <C4> 1/4
+}
+
+// ── Track 1: straight 8ths ───────────────────────────────────────────────────
+track 1
+tempo 120
+volume 90
+wave sine
+attack 5
+decay 0
+sustain 100
+release 80
+
+swing 50 // no swing
+scale()
+
+swing 90
+scale()

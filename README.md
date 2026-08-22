@@ -64,6 +64,7 @@ loop (j < 8) {
 | Tempo           | `tempo 120`                        |
 | Volume          | `volume 80`                        |
 | Pan             | `pan -50`                          |
+| Swing           | `swing 67`                         |
 | Variable        | `let i = 0`                        |
 | Assignment      | `i = i + 1`                        |
 | Array literal   | `let a = [C4, E4, G4]`             |

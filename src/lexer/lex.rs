@@ -348,6 +348,7 @@ impl Lexer {
             "release" => Some(Token::Release),
             "fm_ratio" => Some(Token::FmRatio),
             "fm_depth" => Some(Token::FmDepth),
+            "swing" => Some(Token::Swing),
             "import" => Some(Token::Import),
             "fm" => Some(Token::Fm),
             "op" => Some(Token::Op),

@@ -60,6 +60,7 @@ pub enum Stmt {
     Release(Expr),
     FmRatio(Expr),
     FmDepth(Expr),
+    Swing(Expr),
     FmBlock {
         ops: Vec<FmOperator>,
         algorithm: Vec<(usize, usize)>, // (modulator_id, target_id)

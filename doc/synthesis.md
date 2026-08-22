@@ -8,6 +8,10 @@ This document covers the sound synthesis system: waveforms, ADSR envelopes, perf
 
 1. [Default Parameter Values](#1-default-parameter-values)
 2. [Performance Controls](#2-performance-controls)
+   - [Tempo](#tempo)
+   - [Volume](#volume)
+   - [Pan](#pan)
+   - [Swing](#swing)
 3. [Waveforms](#3-waveforms)
 4. [ADSR Envelope](#4-adsr-envelope)
 5. [Legacy 2-Op FM Synthesis](#5-legacy-2-op-fm-synthesis)
@@ -39,6 +43,7 @@ All synthesis parameters are **per-track**. When a track starts it inherits thes
 | `fm_ratio` | `1.0` | ratio (modulator freq / carrier freq) |
 | `fm_depth` | `0.0` | modulation index; 0 = FM disabled |
 | `fm_block` | none | multi-op FM block (overrides legacy FM) |
+| `swing` | `50` | swing feel: 50 = straight, 100 = maximum swing |
 
 ---
 
@@ -97,6 +102,49 @@ pan 64       // right of centre
 pan -127     // hard left
 pan 127      // hard right
 ```
+
+### Swing
+
+Applies a swing feel to 8th-note pairs. Notes on the **on-beat** (even) 8th-note slot are lengthened; notes on the **off-beat** (odd) slot are shortened. Quarter notes and longer values are unaffected. Notes shorter than an 8th pass through unchanged.
+
+```
+swing integer_or_float
+```
+
+| Value | Effect |
+|-------|--------|
+| `50` | Straight — equal 8th notes (default) |
+| `67` | Classic jazz/blues swing (~⅔ + ⅓ feel) |
+| `75` | Heavy swing |
+| `100` | Maximum swing (on-beat takes the full quarter, off-beat = 0ms) |
+
+Valid range: **50–100** (inclusive). Values outside this range are a runtime error.
+
+```wilios
+tempo 120
+swing 67         // 8th notes: 335ms + 165ms (= 500ms quarter)
+
+<C4> 1/8         // on-beat → 335ms (long)
+<D4> 1/8         // off-beat → 165ms (short)
+<E4> 1/4         // quarter note → always 500ms, unaffected
+```
+
+```wilios
+// Back to straight
+swing 50
+<C4> 1/8         // 250ms
+<D4> 1/8         // 250ms
+```
+
+Rests also consume time with swing applied, so the phase is preserved:
+
+```wilios
+swing 67
+rest 1/8         // on-beat rest → 335ms; next note lands on off-beat
+<C4> 1/8         // off-beat → 165ms (short)
+```
+
+Both integer and float literals are accepted: `swing 67` and `swing 67.0` are equivalent.
 
 ---
 

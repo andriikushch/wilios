@@ -205,6 +205,7 @@ impl Parser {
             Some(Token::Release) => self.parse_adsr_param(Token::Release).map(Some),
             Some(Token::FmRatio) => self.parse_fm_param(Token::FmRatio).map(Some),
             Some(Token::FmDepth) => self.parse_fm_param(Token::FmDepth).map(Some),
+            Some(Token::Swing) => self.parse_swing().map(Some),
             Some(Token::Fm) => self.parse_fm_block().map(Some),
 
             Some(Token::Loop) => self.parse_loop().map(Some),
@@ -679,6 +680,22 @@ impl Parser {
             Token::FmDepth => Ok(Stmt::FmDepth(value)),
             _ => unreachable!(),
         }
+    }
+
+    fn parse_swing(&mut self) -> Result<Stmt, ParseError> {
+        self.next(); // consume `swing`
+        let value = match self.current_token().cloned() {
+            Some(Token::Float(f)) => {
+                self.next();
+                Expr::Float(f)
+            }
+            Some(Token::Int(n)) => {
+                self.next();
+                Expr::Int(n)
+            }
+            _ => return Err(self.make_error("expected numeric value after `swing`")),
+        };
+        Ok(Stmt::Swing(value))
     }
 
     fn parse_fm_block(&mut self) -> Result<Stmt, ParseError> {
