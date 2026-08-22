@@ -1,6 +1,7 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::f32::consts::PI;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Instant;
 
 use wilios::interpreter::event::{EventKind, FmBlockConfig, FmOpConfig};
@@ -456,6 +457,9 @@ fn main() {
     let mut interpreter_cb = interpreter.clone();
     let _start_time = Instant::now();
 
+    let finished = Arc::new(AtomicBool::new(false));
+    let finished_cb = finished.clone();
+
     // Peak limiter: instant attack, ~100 ms release
     let limiter_release = (-1.0_f32 / (sample_rate * 0.1)).exp();
     let mut peak_env: f32 = 0.0_f32;
@@ -546,6 +550,10 @@ fn main() {
                     sample_counter += 1;
                 }
                 voices_lock.retain(|v| !v.finished());
+
+                if voices_lock.is_empty() && interpreter_cb.all_tracks_finished() {
+                    finished_cb.store(true, Ordering::Relaxed);
+                }
             },
             |err| eprintln!("Audio error: {:?}", err),
             None,
@@ -554,6 +562,17 @@ fn main() {
 
     stream.play().unwrap();
 
-    println!("Playing DSL program… press Enter to quit");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
+    println!("Playing DSL program… press Enter to quit early, or wait for it to finish");
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buf = String::new();
+        let _ = std::io::stdin().read_line(&mut buf);
+        let _ = tx.send(());
+    });
+    loop {
+        if finished.load(Ordering::Relaxed) || rx.try_recv().is_ok() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 }
