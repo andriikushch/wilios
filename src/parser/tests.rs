@@ -644,10 +644,11 @@ fn parse_with_context(
 
 #[test]
 fn parse_import_global_stmts() {
-    let path = "/tmp/trx_test_import_global.trx";
-    std::fs::write(path, "let x = 42\n").unwrap();
+    let path = std::env::temp_dir().join("trx_test_import_global.trx");
+    std::fs::write(&path, "let x = 42\n").unwrap();
 
-    let src = format!("import \"{}\"\nlet y = 1\n", path);
+    let path_str = path.to_string_lossy().replace('\\', "/");
+    let src = format!("import \"{}\"\nlet y = 1\n", path_str);
     let program = parse_with_context(&src, None, HashSet::new()).unwrap();
 
     // imported let x comes first, then let y
@@ -669,10 +670,11 @@ fn parse_import_global_stmts() {
 
 #[test]
 fn parse_import_track_stmts() {
-    let path = "/tmp/trx_test_import_track.trx";
-    std::fs::write(path, "track 1\ntempo 120\n").unwrap();
+    let path = std::env::temp_dir().join("trx_test_import_track.trx");
+    std::fs::write(&path, "track 1\ntempo 120\n").unwrap();
 
-    let src = format!("import \"{}\"\n", path);
+    let path_str = path.to_string_lossy().replace('\\', "/");
+    let src = format!("import \"{}\"\n", path_str);
     let program = parse_with_context(&src, None, HashSet::new()).unwrap();
 
     assert_eq!(program.tracks.len(), 1);
@@ -682,12 +684,14 @@ fn parse_import_track_stmts() {
 
 #[test]
 fn parse_import_merges_same_track() {
-    let lib1 = "/tmp/trx_test_merge1.trx";
-    let lib2 = "/tmp/trx_test_merge2.trx";
-    std::fs::write(lib1, "track 1\ntempo 120\n").unwrap();
-    std::fs::write(lib2, "track 1\ntempo 240\n").unwrap();
+    let lib1 = std::env::temp_dir().join("trx_test_merge1.trx");
+    let lib2 = std::env::temp_dir().join("trx_test_merge2.trx");
+    std::fs::write(&lib1, "track 1\ntempo 120\n").unwrap();
+    std::fs::write(&lib2, "track 1\ntempo 240\n").unwrap();
 
-    let src = format!("import \"{}\"\nimport \"{}\"\n", lib1, lib2);
+    let lib1_str = lib1.to_string_lossy().replace('\\', "/");
+    let lib2_str = lib2.to_string_lossy().replace('\\', "/");
+    let src = format!("import \"{}\"\nimport \"{}\"\n", lib1_str, lib2_str);
     let program = parse_with_context(&src, None, HashSet::new()).unwrap();
 
     // Both tempo stmts end up in track 1
@@ -725,10 +729,11 @@ fn parse_import_missing_string_literal_error() {
 
 #[test]
 fn parse_import_circular_protection() {
-    let path = "/tmp/trx_test_circular.trx";
-    std::fs::write(path, format!("import \"{}\"\nlet x = 1\n", path)).unwrap();
+    let path = std::env::temp_dir().join("trx_test_circular.trx");
+    let path_str = path.to_string_lossy().replace('\\', "/");
+    std::fs::write(&path, format!("import \"{}\"\nlet x = 1\n", path_str)).unwrap();
 
-    let canonical = PathBuf::from(path).canonicalize().unwrap();
+    let canonical = path.canonicalize().unwrap();
     let base_dir = canonical.parent().map(|p| p.to_path_buf());
     // Pre-populate loaded with the file's own canonical path — simulates being inside it
     let loaded = HashSet::from([canonical]);
@@ -749,10 +754,11 @@ fn parse_import_circular_protection() {
 #[test]
 fn parse_import_duplicate_ignored() {
     // Importing the same file twice produces its stmts only once
-    let path = "/tmp/trx_test_dedup.trx";
-    std::fs::write(path, "let shared = 99\n").unwrap();
+    let path = std::env::temp_dir().join("trx_test_dedup.trx");
+    std::fs::write(&path, "let shared = 99\n").unwrap();
 
-    let src = format!("import \"{}\"\nimport \"{}\"\n", path, path);
+    let path_str = path.to_string_lossy().replace('\\', "/");
+    let src = format!("import \"{}\"\nimport \"{}\"\n", path_str, path_str);
     let program = parse_with_context(&src, None, HashSet::new()).unwrap();
 
     // Only one let shared = 99 (second import is skipped)
@@ -761,12 +767,13 @@ fn parse_import_duplicate_ignored() {
 
 #[test]
 fn parse_import_relative_path() {
-    // Write lib in /tmp, import it with a relative path from /tmp
-    let lib_path = "/tmp/trx_rel_lib.trx";
-    std::fs::write(lib_path, "let imported = 7\n").unwrap();
+    // Write lib in temp dir, import it with a relative path from that dir
+    let temp = std::env::temp_dir();
+    let lib_path = temp.join("trx_rel_lib.trx");
+    std::fs::write(&lib_path, "let imported = 7\n").unwrap();
 
     let src = "import \"trx_rel_lib.trx\"\n";
-    let base_dir = Some(PathBuf::from("/tmp"));
+    let base_dir = Some(temp);
     let program = parse_with_context(src, base_dir, HashSet::new()).unwrap();
 
     assert_eq!(
