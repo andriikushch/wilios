@@ -93,14 +93,17 @@ fn format_value(v: &Value) -> String {
             format!("{}{}{}", p.letter, acc, p.octave)
         }
         Value::Chord(ps) => {
-            let inner: Vec<String> = ps.iter().map(|p| {
-                let acc = match p.accidental {
-                    1 => "#",
-                    -1 => "b",
-                    _ => "",
-                };
-                format!("{}{}{}", p.letter, acc, p.octave)
-            }).collect();
+            let inner: Vec<String> = ps
+                .iter()
+                .map(|p| {
+                    let acc = match p.accidental {
+                        1 => "#",
+                        -1 => "b",
+                        _ => "",
+                    };
+                    format!("{}{}{}", p.letter, acc, p.octave)
+                })
+                .collect();
             format!("<{}>", inner.join(", "))
         }
         Value::Array(elems) => {
@@ -185,11 +188,17 @@ fn builtin_transpose(args: Vec<Value>) -> Result<Value, RuntimeError> {
     }
     let n = match &args[1] {
         Value::Int(n) => *n,
-        _ => return Err(RuntimeError("transpose: second argument must be an integer".into())),
+        _ => {
+            return Err(RuntimeError(
+                "transpose: second argument must be an integer".into(),
+            ));
+        }
     };
     match &args[0] {
         Value::Pitch(p) => Ok(Value::Pitch(transpose_one(p, n))),
-        Value::Chord(ps) => Ok(Value::Chord(ps.iter().map(|p| transpose_one(p, n)).collect())),
+        Value::Chord(ps) => Ok(Value::Chord(
+            ps.iter().map(|p| transpose_one(p, n)).collect(),
+        )),
         _ => Err(RuntimeError(
             "transpose: first argument must be a pitch or chord".into(),
         )),
@@ -423,7 +432,7 @@ impl Interpreter {
                                 return Err(RuntimeError(
                                     "Chord: pitch expression must evaluate to a pitch or chord"
                                         .into(),
-                                ))
+                                ));
                             }
                         }
                     }
@@ -775,7 +784,13 @@ impl Interpreter {
         let long_ms = (ms_per_beat * ratio).round() as u64;
         let short_ms = (ms_per_beat * (1.0 - ratio)).round() as u64;
         (0..num_eighths)
-            .map(|i| if (start_slot + i) % 2 == 0 { long_ms } else { short_ms })
+            .map(|i| {
+                if (start_slot + i) % 2 == 0 {
+                    long_ms
+                } else {
+                    short_ms
+                }
+            })
             .sum()
     }
 
@@ -812,7 +827,7 @@ impl Interpreter {
                             return Err(RuntimeError(
                                 "Chord expression: each element must evaluate to a pitch or chord"
                                     .into(),
-                            ))
+                            ));
                         }
                     }
                 }

@@ -1,17 +1,23 @@
+use proptest::prelude::*;
 use wilios::interpreter::interpreter::Interpreter;
 use wilios::lexer::Lexer;
 use wilios::parser::ast::Waveform;
 use wilios::parser::parser::Parser;
-use proptest::prelude::*;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 fn run_pipeline(source: &str) -> Option<Vec<wilios::interpreter::event::Event>> {
-    let Ok(tokens) = Lexer::new(source).lex() else { return None; };
-    let Ok(program) = Parser::new(tokens).parse() else { return None; };
-    let Ok(mut interp) = Interpreter::new(program) else { return None; };
+    let Ok(tokens) = Lexer::new(source).lex() else {
+        return None;
+    };
+    let Ok(program) = Parser::new(tokens).parse() else {
+        return None;
+    };
+    let Ok(mut interp) = Interpreter::new(program) else {
+        return None;
+    };
     interp.schedule_until(0, 100).ok()
 }
 
@@ -138,9 +144,18 @@ fn run_pipeline_timed(source: String) -> bool {
 
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
-        let Ok(tokens) = Lexer::new(&source).lex() else { let _ = tx.send(()); return; };
-        let Ok(program) = Parser::new(tokens).parse() else { let _ = tx.send(()); return; };
-        let Ok(mut interp) = Interpreter::new(program) else { let _ = tx.send(()); return; };
+        let Ok(tokens) = Lexer::new(&source).lex() else {
+            let _ = tx.send(());
+            return;
+        };
+        let Ok(program) = Parser::new(tokens).parse() else {
+            let _ = tx.send(());
+            return;
+        };
+        let Ok(mut interp) = Interpreter::new(program) else {
+            let _ = tx.send(());
+            return;
+        };
         let _ = interp.schedule_until(0, 100);
         let _ = tx.send(());
     });

@@ -30,7 +30,13 @@ struct Envelope {
 }
 
 impl Envelope {
-    fn new(sample_rate: f32, attack_ms: f32, decay_ms: f32, sustain_level: f32, release_ms: f32) -> Self {
+    fn new(
+        sample_rate: f32,
+        attack_ms: f32,
+        decay_ms: f32,
+        sustain_level: f32,
+        release_ms: f32,
+    ) -> Self {
         let attack_inc = if attack_ms > 0.0 {
             1.0 / (sample_rate * attack_ms / 1000.0)
         } else {
@@ -106,12 +112,22 @@ impl Envelope {
 /// Standalone waveform sampler — avoids borrowing the Voice struct.
 fn sample_waveform(wave: &Waveform, phase: f32) -> f32 {
     match wave {
-        Waveform::Sine     => (phase * 2.0 * PI).sin(),
-        Waveform::Square   => if (phase % 1.0) < 0.5 { 1.0 } else { -1.0 },
-        Waveform::Saw      => (phase % 1.0) * 2.0 - 1.0,
+        Waveform::Sine => (phase * 2.0 * PI).sin(),
+        Waveform::Square => {
+            if (phase % 1.0) < 0.5 {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        Waveform::Saw => (phase % 1.0) * 2.0 - 1.0,
         Waveform::Triangle => {
             let p = phase % 1.0;
-            if p < 0.5 { p * 4.0 - 1.0 } else { (1.0 - p) * 4.0 - 1.0 }
+            if p < 0.5 {
+                p * 4.0 - 1.0
+            } else {
+                (1.0 - p) * 4.0 - 1.0
+            }
         }
     }
 }
@@ -119,12 +135,12 @@ fn sample_waveform(wave: &Waveform, phase: f32) -> f32 {
 /// State for one FM operator in multi-op mode.
 struct OpState {
     phase: f32,
-    phase_inc: f32,     // freq * ratio / sample_rate
-    level: f32,         // modulation depth (for modulators) or output amplitude (for carriers)
+    phase_inc: f32, // freq * ratio / sample_rate
+    level: f32,     // modulation depth (for modulators) or output amplitude (for carriers)
     wave: Waveform,
     env: Envelope,
     release_ms: f32,
-    last_output: f32,   // raw waveform output of previous sample (used for modulation/feedback)
+    last_output: f32, // raw waveform output of previous sample (used for modulation/feedback)
 }
 
 struct Voice {
@@ -173,24 +189,38 @@ impl Voice {
 
         if let Some(cfg) = fm_block {
             // ---- Multi-operator FM path ----
-            let mut ops: Vec<OpState> = cfg.ops.iter().map(|op: &FmOpConfig| OpState {
-                phase: 0.0,
-                phase_inc: freq * op.ratio / sample_rate,
-                level: op.level,
-                wave: op.wave.clone(),
-                env: Envelope::new(sample_rate, op.attack_ms, op.decay_ms, op.sustain_level, op.release_ms),
-                release_ms: op.release_ms,
-                last_output: 0.0,
-            }).collect();
+            let mut ops: Vec<OpState> = cfg
+                .ops
+                .iter()
+                .map(|op: &FmOpConfig| OpState {
+                    phase: 0.0,
+                    phase_inc: freq * op.ratio / sample_rate,
+                    level: op.level,
+                    wave: op.wave.clone(),
+                    env: Envelope::new(
+                        sample_rate,
+                        op.attack_ms,
+                        op.decay_ms,
+                        op.sustain_level,
+                        op.release_ms,
+                    ),
+                    release_ms: op.release_ms,
+                    last_output: 0.0,
+                })
+                .collect();
 
             // Build id -> index map
-            let id_to_idx: std::collections::HashMap<usize, usize> = cfg.ops.iter()
+            let id_to_idx: std::collections::HashMap<usize, usize> = cfg
+                .ops
+                .iter()
                 .enumerate()
                 .map(|(i, op)| (op.id, i))
                 .collect();
 
             // Convert algorithm from (id, id) to (idx, idx)
-            let algorithm_indices: Vec<(usize, usize)> = cfg.algorithm.iter()
+            let algorithm_indices: Vec<(usize, usize)> = cfg
+                .algorithm
+                .iter()
                 .filter_map(|(src_id, dst_id)| {
                     let s = id_to_idx.get(src_id)?;
                     let d = id_to_idx.get(dst_id)?;
@@ -215,9 +245,8 @@ impl Voice {
             for &(_, d) in &algorithm_indices {
                 in_degree[d] += 1;
             }
-            let mut queue: std::collections::VecDeque<usize> = (0..n)
-                .filter(|&i| in_degree[i] == 0)
-                .collect();
+            let mut queue: std::collections::VecDeque<usize> =
+                (0..n).filter(|&i| in_degree[i] == 0).collect();
             let mut process_order: Vec<usize> = Vec::with_capacity(n);
             while let Some(node) = queue.pop_front() {
                 process_order.push(node);
@@ -240,9 +269,12 @@ impl Voice {
             // Silence unused legacy fields
             let _ = &mut ops; // ensure initialized before move
             Self {
-                phase: 0.0, phase_inc: 0.0,
-                mod_phase: 0.0, mod_phase_inc: 0.0,
-                fm_depth: 0.0, waveform: Waveform::Sine,
+                phase: 0.0,
+                phase_inc: 0.0,
+                mod_phase: 0.0,
+                mod_phase_inc: 0.0,
+                fm_depth: 0.0,
+                waveform: Waveform::Sine,
                 env: Envelope::new(sample_rate, 0.0, 0.0, 1.0, 0.0),
                 release_ms: 0.0,
                 volume,
@@ -293,7 +325,8 @@ impl Voice {
                 // Sum modulation from all ops that target this op.
                 // Apply the source op's envelope so modulation depth tracks its ADSR over time.
                 // Self-feedback (src == idx) uses 1.0 because env_vals[idx] isn't set yet.
-                let modulation: f32 = algorithm_indices.iter()
+                let modulation: f32 = algorithm_indices
+                    .iter()
                     .filter(|(_, dst)| *dst == idx)
                     .map(|(src, _)| {
                         let env = if *src == idx { 1.0 } else { env_vals[*src] };
@@ -306,7 +339,9 @@ impl Voice {
                 env_vals[idx] = ops[idx].env.next();
 
                 ops[idx].phase += ops[idx].phase_inc;
-                if ops[idx].phase >= 1.0 { ops[idx].phase -= 1.0; }
+                if ops[idx].phase >= 1.0 {
+                    ops[idx].phase -= 1.0;
+                }
             }
 
             // Store outputs for next sample (feedback)
@@ -327,7 +362,8 @@ impl Voice {
 
             // Sum carrier outputs
             let carrier_indices = self.carrier_indices.clone();
-            let audio: f32 = carrier_indices.iter()
+            let audio: f32 = carrier_indices
+                .iter()
                 .map(|&i| current_outputs[i] * env_vals[i] * levels[i])
                 .sum();
 
@@ -340,9 +376,13 @@ impl Voice {
             let s = sample_waveform(&self.waveform, carrier_phase);
 
             self.phase += self.phase_inc;
-            if self.phase >= 1.0 { self.phase -= 1.0; }
+            if self.phase >= 1.0 {
+                self.phase -= 1.0;
+            }
             self.mod_phase += self.mod_phase_inc;
-            if self.mod_phase >= 1.0 { self.mod_phase -= 1.0; }
+            if self.mod_phase >= 1.0 {
+                self.mod_phase -= 1.0;
+            }
 
             if self.remaining_samples > 0 {
                 self.remaining_samples -= 1;
@@ -386,9 +426,14 @@ fn main() {
     }
     let file_path = std::path::PathBuf::from(&args[1])
         .canonicalize()
-        .unwrap_or_else(|e| { eprintln!("Error resolving '{}': {}", args[1], e); std::process::exit(1); });
-    let source = std::fs::read_to_string(&file_path)
-        .unwrap_or_else(|e| { eprintln!("Error reading '{}': {}", args[1], e); std::process::exit(1); });
+        .unwrap_or_else(|e| {
+            eprintln!("Error resolving '{}': {}", args[1], e);
+            std::process::exit(1);
+        });
+    let source = std::fs::read_to_string(&file_path).unwrap_or_else(|e| {
+        eprintln!("Error reading '{}': {}", args[1], e);
+        std::process::exit(1);
+    });
     let mut l = Lexer::new(&source);
 
     let tokens = l.lex().unwrap_or_else(|e| {
@@ -397,10 +442,12 @@ fn main() {
     });
     let base_dir = file_path.parent().map(|p| p.to_path_buf());
     let loaded = std::collections::HashSet::from([file_path]);
-    let program = Parser::new_with_context(tokens, base_dir, loaded).parse().unwrap_or_else(|e| {
-        eprintln!("parse error: {}", e);
-        std::process::exit(1);
-    });
+    let program = Parser::new_with_context(tokens, base_dir, loaded)
+        .parse()
+        .unwrap_or_else(|e| {
+            eprintln!("parse error: {}", e);
+            std::process::exit(1);
+        });
 
     // 1️⃣ Create interpreter
     let interpreter = Interpreter::new(program).expect("runtime error in global scope");
@@ -425,12 +472,23 @@ fn main() {
                 let buffer_frames = (data.len() / channels) as u64;
                 let buffer_end_ms =
                     ((sample_counter + buffer_frames) as f32 / sample_rate * 1000.0) as u64;
-                let events = interpreter_cb.schedule_until(0, buffer_end_ms).unwrap_or_default();
+                let events = interpreter_cb
+                    .schedule_until(0, buffer_end_ms)
+                    .unwrap_or_default();
                 for ev in events {
                     let EventKind::Note {
-                        pitch, duration, volume,
-                        waveform, attack_ms, decay_ms, sustain_level, release_ms,
-                        fm_ratio, fm_depth, fm_block, ..
+                        pitch,
+                        duration,
+                        volume,
+                        waveform,
+                        attack_ms,
+                        decay_ms,
+                        sustain_level,
+                        release_ms,
+                        fm_ratio,
+                        fm_depth,
+                        fm_block,
+                        ..
                     } = ev.kind;
                     let freq = note_frequency(
                         Pitch {
@@ -440,9 +498,18 @@ fn main() {
                         pitch.octave as u8,
                     );
                     voices_lock.push(Voice::new(
-                        freq, sample_rate, volume as f32 / 127.0, duration,
-                        waveform, attack_ms, decay_ms, sustain_level, release_ms,
-                        fm_ratio, fm_depth, fm_block,
+                        freq,
+                        sample_rate,
+                        volume as f32 / 127.0,
+                        duration,
+                        waveform,
+                        attack_ms,
+                        decay_ms,
+                        sustain_level,
+                        release_ms,
+                        fm_ratio,
+                        fm_depth,
+                        fm_block,
                     ));
                 }
 
@@ -457,7 +524,7 @@ fn main() {
                     let pre = mix * MASTER_GAIN;
                     let abs_pre = pre.abs();
                     if abs_pre > peak_env {
-                        peak_env = abs_pre;          // instant attack
+                        peak_env = abs_pre; // instant attack
                     } else {
                         peak_env *= limiter_release; // ~100 ms release
                     }

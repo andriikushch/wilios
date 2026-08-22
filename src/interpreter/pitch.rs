@@ -48,7 +48,6 @@ pub struct Pitch {
     pub accidental: Accidental,
 }
 
-
 pub fn note_frequency(p: Pitch, octave: u8) -> f32 {
     let a4 = 440.0;
     let a4_note = 9 + 12 * 4;

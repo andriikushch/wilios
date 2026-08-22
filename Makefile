@@ -1,9 +1,12 @@
-.PHONY: test test-all grammar-check install-deps install-extension example build build-all grammar
+.PHONY: test test-all grammar-check install-deps install-extension example build build-all grammar fmt
 
 TARGETS = \
 	x86_64-unknown-linux-gnu \
 	aarch64-unknown-linux-gnu \
 	x86_64-pc-windows-gnu
+
+fmt:
+	cargo fmt
 
 build:
 	cargo build --release

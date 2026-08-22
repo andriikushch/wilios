@@ -819,9 +819,21 @@ fn parse_array_pitch_literal() {
         vec![Stmt::Let {
             name: Ident("notes".into()),
             value: Expr::Array(vec![
-                Expr::Pitch(Pitch { letter: 'C', accidental: 0, octave: 4 }),
-                Expr::Pitch(Pitch { letter: 'E', accidental: 0, octave: 4 }),
-                Expr::Pitch(Pitch { letter: 'G', accidental: 0, octave: 4 }),
+                Expr::Pitch(Pitch {
+                    letter: 'C',
+                    accidental: 0,
+                    octave: 4
+                }),
+                Expr::Pitch(Pitch {
+                    letter: 'E',
+                    accidental: 0,
+                    octave: 4
+                }),
+                Expr::Pitch(Pitch {
+                    letter: 'G',
+                    accidental: 0,
+                    octave: 4
+                }),
             ]),
         }]
     );
@@ -836,12 +848,28 @@ fn parse_array_chord_literal() {
             name: Ident("chords".into()),
             value: Expr::Array(vec![
                 Expr::Chord(vec![
-                    Expr::Pitch(Pitch { letter: 'C', accidental: 0, octave: 4 }),
-                    Expr::Pitch(Pitch { letter: 'E', accidental: 0, octave: 4 }),
+                    Expr::Pitch(Pitch {
+                        letter: 'C',
+                        accidental: 0,
+                        octave: 4
+                    }),
+                    Expr::Pitch(Pitch {
+                        letter: 'E',
+                        accidental: 0,
+                        octave: 4
+                    }),
                 ]),
                 Expr::Chord(vec![
-                    Expr::Pitch(Pitch { letter: 'D', accidental: 0, octave: 4 }),
-                    Expr::Pitch(Pitch { letter: 'F', accidental: 0, octave: 4 }),
+                    Expr::Pitch(Pitch {
+                        letter: 'D',
+                        accidental: 0,
+                        octave: 4
+                    }),
+                    Expr::Pitch(Pitch {
+                        letter: 'F',
+                        accidental: 0,
+                        octave: 4
+                    }),
                 ]),
             ]),
         }]

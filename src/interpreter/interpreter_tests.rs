@@ -7,7 +7,10 @@ use crate::parser::parser::Parser;
 fn run(src: &str) {
     let tokens = Lexer::new(src).lex().unwrap();
     let program = Parser::new(tokens).parse().unwrap();
-    Interpreter::new(program).unwrap().schedule_until(0, 1000000000000).unwrap();
+    Interpreter::new(program)
+        .unwrap()
+        .schedule_until(0, 1000000000000)
+        .unwrap();
 }
 
 #[test]
@@ -496,7 +499,11 @@ fn interpreter_array_pitch_read() {
     let env = interp.tracks[0].ctx.env_vars.clone();
     assert_eq!(
         env[&crate::parser::ast::Ident("p".into())],
-        Value::Pitch(Pitch { letter: 'E', accidental: 0, octave: 4 })
+        Value::Pitch(Pitch {
+            letter: 'E',
+            accidental: 0,
+            octave: 4
+        })
     );
 }
 
@@ -512,8 +519,16 @@ fn interpreter_array_chord_read() {
     assert_eq!(
         env[&crate::parser::ast::Ident("c".into())],
         Value::Chord(vec![
-            Pitch { letter: 'C', accidental: 0, octave: 4 },
-            Pitch { letter: 'E', accidental: 0, octave: 4 },
+            Pitch {
+                letter: 'C',
+                accidental: 0,
+                octave: 4
+            },
+            Pitch {
+                letter: 'E',
+                accidental: 0,
+                octave: 4
+            },
         ])
     );
 }
@@ -596,7 +611,10 @@ fn swing_67_first_eighth_is_long() {
     let EventKind::Note { duration: d1, .. } = &events[0].kind;
     let EventKind::Note { duration: d2, .. } = &events[1].kind;
     assert_eq!(*d1, 335, "first (on-beat) 8th at swing 67 should be 335ms");
-    assert_eq!(*d2, 165, "second (off-beat) 8th at swing 67 should be 165ms");
+    assert_eq!(
+        *d2, 165,
+        "second (off-beat) 8th at swing 67 should be 165ms"
+    );
 }
 
 #[test]
@@ -608,7 +626,11 @@ fn swing_two_eighths_sum_to_quarter() {
     // Second note starts at d1, so d1 = events[1].at - events[0].at
     let d1 = events[1].at - events[0].at;
     let EventKind::Note { duration: d2, .. } = &events[1].kind;
-    assert_eq!(d1 + d2, 500, "two swung 8ths must sum to one quarter (500ms at 120 BPM)");
+    assert_eq!(
+        d1 + d2,
+        500,
+        "two swung 8ths must sum to one quarter (500ms at 120 BPM)"
+    );
 }
 
 #[test]
@@ -638,7 +660,10 @@ fn swing_rest_advances_phase() {
     let events = interp_events(src);
     assert_eq!(events.len(), 1);
     let EventKind::Note { duration, .. } = &events[0].kind;
-    assert_eq!(*duration, 165, "note after a swung rest should be the short off-beat 8th");
+    assert_eq!(
+        *duration, 165,
+        "note after a swung rest should be the short off-beat 8th"
+    );
 }
 
 #[test]

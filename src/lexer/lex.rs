@@ -304,7 +304,8 @@ impl Lexer {
                     } else {
                         let mut wchars = word.chars();
                         let first = wchars.next().unwrap();
-                        let rest_ok = wchars.all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit());
+                        let rest_ok = wchars
+                            .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit());
                         if !first.is_ascii_lowercase() || !rest_ok {
                             return Err(self.make_error(format!(
                                 "invalid identifier '{}': names must start with [a-z] and may only contain [a-z_0-9]",
