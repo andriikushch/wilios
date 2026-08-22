@@ -571,7 +571,7 @@ impl Interpreter {
                     Value::Float(f) => f,
                     _ => return Err(RuntimeError("swing: expected a numeric value".into())),
                 };
-                if val < 50.0 || val > 100.0 {
+                if !(50.0..=100.0).contains(&val) {
                     return Err(RuntimeError(format!(
                         "swing: value {:.1} is out of range [50, 100]",
                         val
@@ -785,7 +785,7 @@ impl Interpreter {
         let short_ms = (ms_per_beat * (1.0 - ratio)).round() as u64;
         (0..num_eighths)
             .map(|i| {
-                if (start_slot + i) % 2 == 0 {
+                if (start_slot + i).is_multiple_of(2) {
                     long_ms
                 } else {
                     short_ms
