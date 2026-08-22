@@ -104,7 +104,7 @@
     },
     "keywords-synth": {
       "name": "keyword.other.synth.wilios",
-      "match": "\\b(wave|attack|decay|sustain|release|fm_ratio|fm_depth)\\b"
+      "match": "\\b(wave|attack|decay|sustain|release|fm_ratio|fm_depth|swing)\\b"
     },
     "keywords-fm-block": {
       "name": "keyword.other.fm.wilios",

@@ -62,6 +62,7 @@ stmt            = rest_stmt
                 | release_stmt
                 | fm_ratio_stmt
                 | fm_depth_stmt
+                | swing_stmt
                 | fm_block_stmt
                 | loop_stmt
                 | if_stmt
@@ -92,6 +93,12 @@ release_stmt    = "release" , expr ;
 (* Legacy 2-op FM — accept only a literal numeric value *)
 fm_ratio_stmt   = "fm_ratio" , numeric ;
 fm_depth_stmt   = "fm_depth" , numeric ;
+
+(* Swing feel — range [50, 100]; 50 = straight (default), 100 = maximum swing.
+   Accepts integer or float literals. Values outside [50, 100] are a runtime error.
+   Applied to 8th-note pairs: on-beat (even slot) is lengthened, off-beat shortened.
+   Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. *)
+swing_stmt      = "swing" , numeric ;
 
 (* Multi-operator FM block *)
 fm_block_stmt   = "fm" , "{" , { newline | fm_item } , "}" ;
@@ -269,7 +276,7 @@ comment         = "//" , { (* any character except newline *) } , newline ;
 
    Control:   track  global  loop  if  else  let  func  return
    Musical:   tempo  volume  pan   rest
-   Synth:     wave   attack  decay  sustain  release  fm_ratio  fm_depth
+   Synth:     wave   attack  decay  sustain  release  fm_ratio  fm_depth  swing
    FM block:  fm     op     algorithm  level  ratio
    Waveforms: sine   square  saw  tri
    Import:    import
