@@ -1,3 +1,5 @@
+[![CI](https://github.com/andriikushch/wilios/actions/workflows/ci.yml/badge.svg)](https://github.com/andriikushch/wilios/actions/workflows/ci.yml)
+
 > **Early Version Notice**
 > This is a very early version of wilios, created as part of an educational process. It is not production-ready — expect rough edges, missing features, and breaking changes. **Use at your own risk.** Feedback and contributions are very welcome — feel free to open an issue or reach out.
 
