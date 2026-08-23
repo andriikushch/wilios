@@ -430,8 +430,12 @@ impl Parser {
         }
 
         // Import paths must be relative — absolute paths would let a script
-        // reach any file on disk regardless of base_dir.
-        if PathBuf::from(&path_str).is_absolute() {
+        // reach any file on disk regardless of base_dir. `has_root()` also
+        // catches paths like `/etc/passwd` on Windows, which are rooted to
+        // the current drive but not `is_absolute()` (that requires a drive
+        // letter or UNC prefix on Windows).
+        let import_path = PathBuf::from(&path_str);
+        if import_path.is_absolute() || import_path.has_root() {
             return Err(self.make_error(format!(
                 "cannot resolve import '{}': import paths must be relative",
                 path_str

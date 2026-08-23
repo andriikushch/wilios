@@ -818,21 +818,42 @@ fn parse_import_rejects_absolute_path() {
     assert!(result.unwrap_err().message.contains("relative"));
 }
 
+// Builds a `..`-relative path (using `/` separators, which Rust's path
+// APIs accept as separators on every supported OS) from `from` to `to`,
+// by walking up past the components they don't share and back down into
+// `to`'s remaining components. Avoids embedding an OS-specific absolute
+// path (e.g. a Windows `C:\...` prefix) in an import string, which would
+// either get rejected by the relative-path check or, mid-string, be
+// treated as an invalid literal path component rather than a drive.
+fn relative_dotdot_path(from: &std::path::Path, to: &std::path::Path) -> String {
+    let from_components: Vec<_> = from.components().collect();
+    let to_components: Vec<_> = to.components().collect();
+    let common_len = from_components
+        .iter()
+        .zip(to_components.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut parts: Vec<String> = vec!["..".to_string(); from_components.len() - common_len];
+    parts.extend(
+        to_components[common_len..]
+            .iter()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned()),
+    );
+    parts.join("/")
+}
+
 #[test]
 fn parse_import_rejects_root_escape() {
     // A real .wilios file that exists outside the project directory
     let escape_target = std::env::temp_dir().join("wilios_escape_target.wilios");
     std::fs::write(&escape_target, "let x = 1\n").unwrap();
     let escape_target = escape_target.canonicalize().unwrap();
-    let escape_suffix = escape_target
-        .to_string_lossy()
-        .trim_start_matches('/')
-        .replace('\\', "/");
 
-    // Enough `..` segments to reach the filesystem root from any fixture
-    // dir depth, then descend back into the (outside-the-project) target.
-    let src = format!("import \"{}{}\"\n", "../".repeat(32), escape_suffix);
     let base_dir = Some(import_fixture_dir());
+    let canonical_base = base_dir.as_deref().unwrap().canonicalize().unwrap();
+    let escape_suffix = relative_dotdot_path(&canonical_base, &escape_target);
+
+    let src = format!("import \"{}\"\n", escape_suffix);
     let result = parse_with_context(&src, base_dir, HashSet::new());
     assert!(result.is_err());
     assert!(
