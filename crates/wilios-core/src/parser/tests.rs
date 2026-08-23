@@ -699,8 +699,16 @@ fn parse_import_track_stmts() {
 #[test]
 fn parse_import_merges_same_track() {
     let dir = import_fixture_dir();
-    std::fs::write(dir.join("wilios_test_merge1.wilios"), "track 1\ntempo 120\n").unwrap();
-    std::fs::write(dir.join("wilios_test_merge2.wilios"), "track 1\ntempo 240\n").unwrap();
+    std::fs::write(
+        dir.join("wilios_test_merge1.wilios"),
+        "track 1\ntempo 120\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("wilios_test_merge2.wilios"),
+        "track 1\ntempo 240\n",
+    )
+    .unwrap();
 
     let src = "import \"wilios_test_merge1.wilios\"\nimport \"wilios_test_merge2.wilios\"\n";
     let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
@@ -743,11 +751,7 @@ fn parse_import_missing_string_literal_error() {
 fn parse_import_circular_protection() {
     let dir = import_fixture_dir();
     let path = dir.join("wilios_test_circular.wilios");
-    std::fs::write(
-        &path,
-        "import \"wilios_test_circular.wilios\"\nlet x = 1\n",
-    )
-    .unwrap();
+    std::fs::write(&path, "import \"wilios_test_circular.wilios\"\nlet x = 1\n").unwrap();
 
     let canonical = path.canonicalize().unwrap();
     let base_dir = canonical.parent().map(|p| p.to_path_buf());

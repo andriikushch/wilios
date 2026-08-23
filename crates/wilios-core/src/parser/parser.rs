@@ -453,9 +453,7 @@ impl Parser {
         // current working directory) so `..` traversal can't escape it.
         let project_root = std::env::current_dir()
             .and_then(|dir| dir.canonicalize())
-            .map_err(|e| {
-                self.make_error(format!("cannot resolve import '{}': {}", path_str, e))
-            })?;
+            .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
         if !canonical.starts_with(&project_root) {
             return Err(self.make_error(format!(
                 "cannot resolve import '{}': import escapes the project directory",
