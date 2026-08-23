@@ -58,6 +58,7 @@ stmt            = rest_stmt
                 | global_stmt
                 | pan_stmt
                 | volume_stmt
+                | time_signature_stmt
                 | wave_stmt
                 | attack_stmt
                 | decay_stmt
@@ -85,6 +86,14 @@ chord_stmt      = "<" , expr , { "," , expr } , ">" , duration ;
 tempo_stmt      = "tempo"  , integer ;
 pan_stmt        = "pan"    , [ "-" ] , integer ;
 volume_stmt     = "volume" , integer ;
+
+(* Time signature — numerator/denominator, default 4/4. Settable in global
+   scope (a default for every track that doesn't override it) or per track.
+   Metadata only: stamped onto emitted Note events, has no effect on
+   duration/timing math. Reuses the duration_lit token shape (see DURATION
+   below) but rejects the dotted form; numerator/denominator must both be
+   > 0 — that check happens at runtime, not at parse time. *)
+time_signature_stmt = "time_signature" , integer , "/" , integer ;
 
 (* Synthesis — waveform and ADSR *)
 wave_stmt       = "wave" , waveform ;
@@ -278,7 +287,7 @@ comment         = "//" , { (* any character except newline *) } , newline ;
    function names:
 
    Control:   track  global  loop  if  else  let  func  return
-   Musical:   tempo  volume  pan   rest
+   Musical:   tempo  volume  pan   rest  time_signature
    Synth:     wave   attack  decay  sustain  release  fm_ratio  fm_depth  swing
    FM block:  fm     op     algorithm  level  ratio
    Waveforms: sine   square  saw  tri

@@ -12,6 +12,7 @@ This document covers the sound synthesis system: waveforms, ADSR envelopes, perf
    - [Volume](#volume)
    - [Pan](#pan)
    - [Swing](#swing)
+   - [Time Signature](#time-signature)
 3. [Waveforms](#3-waveforms)
 4. [ADSR Envelope](#4-adsr-envelope)
 5. [Legacy 2-Op FM Synthesis](#5-legacy-2-op-fm-synthesis)
@@ -28,13 +29,14 @@ This document covers the sound synthesis system: waveforms, ADSR envelopes, perf
 
 ## 1. Default Parameter Values
 
-All synthesis parameters are **per-track**. When a track starts it inherits these defaults:
+All synthesis parameters are **per-track**. When a track starts it inherits these hardcoded defaults, unless a `global`-scope statement set a different default first (see [language-reference.md — Scope](language-reference.md#11-scope)) — either way, a track can still override any of them locally:
 
 | Parameter | Default | Range / Unit |
 |-----------|---------|--------------|
 | `tempo` | `120` | BPM, integer |
 | `volume` | `100` | 0–127, integer |
 | `pan` | `0` | −127 (left) to +127 (right) |
+| `time_signature` | `4/4` | numerator/denominator, both > 0 (metadata only) |
 | `wave` | `sine` | `sine` `square` `saw` `tri` |
 | `attack` | `10` | milliseconds, ≥ 0 |
 | `decay` | `0` | milliseconds, ≥ 0 |
@@ -145,6 +147,33 @@ rest 1/8         // on-beat rest → 335ms; next note lands on off-beat
 ```
 
 Both integer and float literals are accepted: `swing 67` and `swing 67.0` are equivalent.
+
+### Time Signature
+
+Declares the meter as `numerator/denominator`. This is **metadata only**: it's stamped onto every emitted Note event, but wilios has no bar/measure concept, so it has no effect on duration or timing math.
+
+```
+time_signature integer/integer
+```
+
+```wilios
+time_signature 4/4   // default
+time_signature 3/4   // waltz time
+time_signature 6/8   // compound time
+```
+
+Both numerator and denominator must be greater than 0; violating this is a runtime error. Settable in global scope (a default for every track) or per track (a local override):
+
+```wilios
+time_signature 3/4    // default for every track
+
+track 1
+<C4> 1/4               // inherits 3/4 (not shown on this event's audio — metadata only)
+
+track 2
+time_signature 6/8     // overrides the global default here
+<G3> 1/4
+```
 
 ---
 

@@ -100,7 +100,7 @@
     },
     "keywords-musical": {
       "name": "keyword.other.musical.wilios",
-      "match": "\\b(tempo|volume|pan|rest)\\b"
+      "match": "\\b(tempo|volume|pan|rest|time_signature)\\b"
     },
     "keywords-synth": {
       "name": "keyword.other.synth.wilios",
