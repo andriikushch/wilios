@@ -820,25 +820,32 @@ fn parse_import_rejects_absolute_path() {
 
 // Builds a `..`-relative path (using `/` separators, which Rust's path
 // APIs accept as separators on every supported OS) from `from` to `to`,
-// by walking up past the components they don't share and back down into
-// `to`'s remaining components. Avoids embedding an OS-specific absolute
-// path (e.g. a Windows `C:\...` prefix) in an import string, which would
-// either get rejected by the relative-path check or, mid-string, be
-// treated as an invalid literal path component rather than a drive.
+// by walking up past the named directories they don't share and back
+// down into `to`'s remaining named components. Only `Component::Normal`
+// (actual directory/file names) are considered — `Prefix`/`RootDir`
+// components are skipped, since their raw OS string form is platform-
+// specific (e.g. Windows' `RootDir` stringifies to a literal `\`, and a
+// verbatim `Prefix` to `\\?\C:`), and splicing that into a DSL string
+// literal would either look like an absolute path or, worse, contain a
+// backslash the lexer tries to interpret as an escape sequence.
 fn relative_dotdot_path(from: &std::path::Path, to: &std::path::Path) -> String {
-    let from_components: Vec<_> = from.components().collect();
-    let to_components: Vec<_> = to.components().collect();
-    let common_len = from_components
+    fn normal_names(p: &std::path::Path) -> Vec<String> {
+        p.components()
+            .filter_map(|c| match c {
+                std::path::Component::Normal(name) => Some(name.to_string_lossy().into_owned()),
+                _ => None,
+            })
+            .collect()
+    }
+    let from_names = normal_names(from);
+    let to_names = normal_names(to);
+    let common_len = from_names
         .iter()
-        .zip(to_components.iter())
+        .zip(to_names.iter())
         .take_while(|(a, b)| a == b)
         .count();
-    let mut parts: Vec<String> = vec!["..".to_string(); from_components.len() - common_len];
-    parts.extend(
-        to_components[common_len..]
-            .iter()
-            .map(|c| c.as_os_str().to_string_lossy().into_owned()),
-    );
+    let mut parts: Vec<String> = vec!["..".to_string(); from_names.len() - common_len];
+    parts.extend(to_names[common_len..].iter().cloned());
     parts.join("/")
 }
 
