@@ -367,9 +367,11 @@ algorithm [src -> dst, ...]
 
 Each edge `src -> dst` means: operator `src`'s output is used to **phase-modulate** operator `dst`.
 
-An operator with no incoming edges (no one modulates it) is a **carrier** — its output is summed into the final audio output.
+An operator with no outgoing edges (it modulates no one) is a **carrier** — its output is summed into the final audio output.
 
-An operator with no outgoing edges (it modulates no one) is a pure **modulator**.
+An operator with no incoming edges (no one modulates it) is a pure **modulator**.
+
+> **Self-loops:** A self-edge (`N->N`) makes operator `N` both a source and a destination, so on its own it satisfies neither definition above. The carrier set is "every operator that is never a source"; if `algorithm [1->1]` is the *only* edge, that set is empty, so the engine falls back to treating the first-declared operator as the carrier — this fallback fires whenever routing leaves no operator without an outgoing edge, not just for this specific case. See [§6.3 — Self-Feedback](#63-self-feedback).
 
 ```wilios
 // Simple 2-op: op 2 modulates op 1 (op 1 is the carrier)
@@ -491,6 +493,8 @@ An operator can modulate itself. This is written as `N->N` in the algorithm:
 ```
 algorithm [1->1]
 ```
+
+Because a self-edge gives that operator both an incoming and an outgoing edge, a bare `algorithm [1->1]` doesn't cleanly fit either definition from [§6.1](#61-algorithm-routing) — the engine's fallback rule picks it as the carrier anyway (see the note there). In practice, self-feedback is normally combined with other routing, as in the example below, where the carrier is unambiguous.
 
 Self-feedback introduces a one-sample delay in the feedback path. Low feedback levels add warmth; high levels add noise and aliasing artefacts. Self-feedback is most commonly applied to a single modulator operator.
 

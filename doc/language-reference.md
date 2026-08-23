@@ -108,7 +108,7 @@ print("hello\nworld")
 
 ## 2. Types
 
-wilios has seven runtime value types:
+wilios has eight runtime value types:
 
 | Type | Description | Example |
 |------|-------------|---------|
@@ -378,7 +378,7 @@ See [synthesis.md — Swing](synthesis.md#swing) for a detailed description and 
 
 #### Time Signature
 
-Declare the meter as `numerator/denominator`. Defaults to `4/4`. Purely metadata — it's stamped onto emitted Note events but has no effect on duration/timing math (wilios has no bar/measure concept yet). Reuses the duration literal shape (see [§6 Durations](#6-durations)) but rejects the dotted form. Both numerator and denominator must be greater than 0 — that's a runtime error, not a parse error.
+Declare the meter as `numerator/denominator`. Defaults to `4/4`. Purely metadata — it's stamped onto emitted Note events but has no effect on duration/timing math (wilios has no bar/measure concept yet). Reuses the duration literal shape (see [§6 Duration Syntax](#6-duration-syntax)) but rejects the dotted form. Both numerator and denominator must be greater than 0 — that's a runtime error, not a parse error.
 
 ```
 time_signature integer/integer
