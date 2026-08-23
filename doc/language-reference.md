@@ -843,6 +843,9 @@ import "path/to/file.wilios"
 ```
 
 - Paths are **relative to the importing file's directory**.
+- The path must end in `.wilios` — any other extension is rejected.
+- The path must be relative — absolute paths (e.g. `import "/etc/passwd"`) are rejected.
+- The resolved file must stay within the current working directory (the project root) — `..` traversal that would escape it is rejected.
 - Circular imports are detected and silently skipped — a file is only imported once regardless of how many times it is referenced.
 - Duplicate imports of the same canonical path are skipped.
 - Imported global statements (variable and function definitions) become available in the importing file's global scope.
