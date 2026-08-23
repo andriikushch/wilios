@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::parser::ast::{Pitch, Waveform};
+use crate::parser::ast::{Pitch, TimeSignature, Waveform};
 
 /// A single FM operator's evaluated configuration (snapshotted at note-emit time).
 #[derive(Clone, Debug, PartialEq)]
@@ -73,5 +73,6 @@ pub enum EventKind {
         fm_ratio: f32,
         fm_depth: f32,
         fm_block: Option<FmBlockConfig>,
+        time_signature: TimeSignature,
     },
 }

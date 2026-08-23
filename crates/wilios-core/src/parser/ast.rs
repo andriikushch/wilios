@@ -27,6 +27,12 @@ pub struct Duration {
     pub dotted: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TimeSignature {
+    pub numerator: usize,
+    pub denominator: usize,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Pitch {
     pub letter: char,
@@ -51,6 +57,7 @@ pub enum Stmt {
     Global,
     Pan(isize),
     Volume(usize),
+    TimeSignature(TimeSignature),
 
     // synth
     Wave(Waveform),

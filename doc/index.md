@@ -22,7 +22,7 @@ Source text (.wilios)
  [ Audio Engine ] ─ cpal callback, multi-voice FM synthesis, soft-clip
 ```
 
-Each track runs independently and is driven by a shared wall-clock. Global statements (variables, function definitions) are evaluated once at startup and their results are cloned into every track's initial environment.
+Each track runs independently and is driven by a shared wall-clock. Global statements (variables, function definitions, and performance/synthesis settings like `tempo`, `volume`, `time_signature`) are evaluated once at startup, and the result is cloned into every track's initial state as its starting defaults — each track can still override any of it locally.
 
 ---
 

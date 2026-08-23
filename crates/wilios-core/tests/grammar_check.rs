@@ -185,6 +185,7 @@ fn lex_keywords_reserved() {
         "tempo",
         "volume",
         "pan",
+        "time_signature",
         "rest",
         "wave",
         "attack",
@@ -328,6 +329,47 @@ fn stmt_pan_negative() {
 #[test]
 fn stmt_pan_rejects_non_int() {
     parse_err("track 0\npan 1.5");
+}
+
+#[test]
+fn stmt_time_signature_literal() {
+    let stmts = track_stmts("track 0\ntime_signature 3/4", 0);
+    assert_eq!(
+        stmts[0],
+        Stmt::TimeSignature(TimeSignature {
+            numerator: 3,
+            denominator: 4
+        })
+    );
+}
+
+#[test]
+fn stmt_time_signature_default_shape_4_4() {
+    let stmts = track_stmts("track 0\ntime_signature 4/4", 0);
+    assert_eq!(
+        stmts[0],
+        Stmt::TimeSignature(TimeSignature {
+            numerator: 4,
+            denominator: 4
+        })
+    );
+}
+
+#[test]
+fn stmt_time_signature_rejects_dotted() {
+    parse_err("track 0\ntime_signature 4/4.");
+}
+
+#[test]
+fn stmt_time_signature_global_scope() {
+    let stmts = global_stmts("time_signature 6/8");
+    assert_eq!(
+        stmts[0],
+        Stmt::TimeSignature(TimeSignature {
+            numerator: 6,
+            denominator: 8
+        })
+    );
 }
 
 // ---------------------------------------------------------------------------

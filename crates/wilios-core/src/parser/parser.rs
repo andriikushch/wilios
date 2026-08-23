@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use crate::{
     lexer::{Lexer, Spanned, Token},
-    parser::ast::{Duration, Expr, FmOperator, Ident, Pitch, Stmt, UnaryOp, Waveform},
+    parser::ast::{
+        Duration, Expr, FmOperator, Ident, Pitch, Stmt, TimeSignature, UnaryOp, Waveform,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -197,6 +199,7 @@ impl Parser {
             Some(Token::Tempo) => self.parse_tempo().map(Some),
             Some(Token::Pan) => self.parse_pan().map(Some),
             Some(Token::Volume) => self.parse_volume().map(Some),
+            Some(Token::TimeSignature) => self.parse_time_signature().map(Some),
 
             Some(Token::Wave) => self.parse_wave().map(Some),
             Some(Token::Attack) => self.parse_adsr_param(Token::Attack).map(Some),
@@ -295,6 +298,29 @@ impl Parser {
                 Ok(Stmt::Volume(value))
             }
             _ => Err(self.make_error("expected integer after `volume`")),
+        }
+    }
+
+    fn parse_time_signature(&mut self) -> Result<Stmt, ParseError> {
+        self.next();
+        match self.current_token() {
+            Some(Token::Duration {
+                beats,
+                division,
+                dotted: false,
+            }) => {
+                let ts = TimeSignature {
+                    numerator: *beats as usize,
+                    denominator: *division as usize,
+                };
+                self.next();
+                Ok(Stmt::TimeSignature(ts))
+            }
+            Some(Token::Duration { dotted: true, .. }) => {
+                Err(self.make_error("time_signature cannot be dotted"))
+            }
+            _ => Err(self
+                .make_error("expected a duration-shaped value (e.g. 4/4) after `time_signature`")),
         }
     }
 

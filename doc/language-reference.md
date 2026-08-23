@@ -376,6 +376,33 @@ swing 50     // back to straight
 
 See [synthesis.md — Swing](synthesis.md#swing) for a detailed description and examples.
 
+#### Time Signature
+
+Declare the meter as `numerator/denominator`. Defaults to `4/4`. Purely metadata — it's stamped onto emitted Note events but has no effect on duration/timing math (wilios has no bar/measure concept yet). Reuses the duration literal shape (see [§6 Durations](#6-durations)) but rejects the dotted form. Both numerator and denominator must be greater than 0 — that's a runtime error, not a parse error.
+
+```
+time_signature integer/integer
+```
+
+```wilios
+time_signature 4/4   // default
+time_signature 3/4   // waltz time
+time_signature 6/8   // compound time
+```
+
+Settable in global scope, where it acts as the default for every track that doesn't set its own, or per track to override:
+
+```wilios
+time_signature 3/4   // default for all tracks below
+
+track 1
+<C4> 1/4              // inherits 3/4
+
+track 2
+time_signature 6/8    // overrides the global default for this track
+<G3> 1/4
+```
+
 ---
 
 ### 5.3 Variables
@@ -867,9 +894,9 @@ Import statements must appear at the top level (not inside a block, loop, or fun
 
 ### Global Scope
 
-Statements written before any `track` keyword, and statements written after a `global` keyword, belong to global scope. Global statements are evaluated **once** at program startup. The resulting environment (variables and function bindings) is **cloned** into every track's initial environment.
+Statements written before any `track` keyword, and statements written after a `global` keyword, belong to global scope. Global statements are evaluated **once** at program startup, against a single shared context. The resulting state — variable/function bindings, and performance/synthesis parameters (`tempo`, `volume`, `pan`, `time_signature`, waveform, ADSR, FM, `swing`) — is **cloned** into every track's initial context.
 
-This means functions and variables defined globally are available in all tracks.
+This means functions and variables defined globally are available in all tracks, and performance/synthesis parameters set globally act as the starting defaults for every track — each track can still override any of them locally.
 
 ```wilios
 // Global scope — available in all tracks
@@ -936,8 +963,8 @@ Tracks do not communicate at runtime.
 ### Global Initialisation
 
 1. Parse all imported files (merged into the program).
-2. Execute `global_stmts` in order.
-3. Clone the resulting `env_vars` into every track's initial environment.
+2. Execute `global_stmts` in order, against a single shared context.
+3. Clone that context — `env_vars` plus performance/synthesis parameters — into every track's initial context.
 4. Begin the audio loop; tracks are scheduled pull-based.
 
 ---
@@ -951,7 +978,7 @@ The following identifiers are reserved and **cannot** be used as variable or fun
 | Control flow | `loop` `if` `else` `return` |
 | Variables / functions | `let` `func` |
 | Scope | `track` `global` |
-| Musical | `tempo` `volume` `pan` `rest` |
+| Musical | `tempo` `volume` `pan` `rest` `time_signature` |
 | Synthesis | `wave` `attack` `decay` `sustain` `release` `fm_ratio` `fm_depth` `swing` |
 | FM block | `fm` `op` `algorithm` `level` `ratio` |
 | Waveforms | `sine` `square` `saw` `tri` |

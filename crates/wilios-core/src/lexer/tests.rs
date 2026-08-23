@@ -2,6 +2,30 @@ use super::Lexer;
 use crate::lexer::Token;
 
 #[test]
+fn lex_time_signature() {
+    let mut l = Lexer::new("time_signature 3/4");
+    let tokens = l
+        .lex()
+        .unwrap()
+        .into_iter()
+        .map(|s| s.token)
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Token::TimeSignature,
+            Token::Duration {
+                beats: 3,
+                division: 4,
+                dotted: false
+            },
+            Token::EOF
+        ]
+    );
+}
+
+#[test]
 fn lex_simple_note_sharp() {
     let mut l = Lexer::new(" G#4 1/8.");
     let tokens = l

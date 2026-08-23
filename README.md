@@ -67,6 +67,7 @@ loop (j < 8) {
 | Volume          | `volume 80`                        |
 | Pan             | `pan -50`                          |
 | Swing           | `swing 67`                         |
+| Time signature  | `time_signature 3/4`               |
 | Variable        | `let i = 0`                        |
 | Assignment      | `i = i + 1`                        |
 | Array literal   | `let a = [C4, E4, G4]`             |
@@ -82,6 +83,8 @@ loop (j < 8) {
 | Comment         | `// text`                          |
 
 Pitches use scientific notation: `C4`, `F#3` (sharp), `Bb4` (flat). Duration is `beats/division` (e.g. `3/8`).
+
+Time signature defaults to `4/4`; set it in `global` scope as a default for every track, or per track to override. It's metadata — it doesn't affect duration/timing math.
 
 **Built-ins:** `print(...)`, `rand(min, max)`, `transpose(pitch_or_chord, semitones)`, `len(array)`
 

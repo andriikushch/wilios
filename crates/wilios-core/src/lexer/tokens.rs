@@ -6,6 +6,7 @@ pub enum Token {
     Tempo,
     Volume,
     Pan,
+    TimeSignature,
     Rest,
     Loop,
     If,

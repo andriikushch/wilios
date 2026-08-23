@@ -309,8 +309,9 @@ fn interpreter_chord_emits_all_pitches() {
 #[test]
 fn interpreter_tempo_affects_event_timing() {
     // At 60 BPM a quarter note = 1000ms; at 120 BPM it's 500ms.
-    // Tempo must be set inside the track to take effect (global-scope tempo
-    // is not propagated to track contexts).
+    // Tempo is set inside the track here (rather than globally) to keep this
+    // test independent of global-scope propagation, which has its own
+    // dedicated coverage below.
     let make = |bpm: usize| {
         let src = format!("track 1\ntempo {bpm}\n<C4> 1/4\n<E4> 1/4");
         let tokens = Lexer::new(&src).lex().unwrap();
@@ -328,6 +329,105 @@ fn interpreter_tempo_affects_event_timing() {
         slow[1].at > fast[1].at,
         "60 BPM note should start later than 120 BPM note"
     );
+}
+
+// ---- Time signature tests ----
+
+#[test]
+fn interpreter_time_signature_defaults_to_4_4() {
+    let src = "track 1\n<C4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { time_signature, .. } = &events[0].kind;
+    assert_eq!(time_signature.numerator, 4);
+    assert_eq!(time_signature.denominator, 4);
+}
+
+#[test]
+fn interpreter_time_signature_affects_event() {
+    let src = "track 1\ntime_signature 3/4\n<C4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { time_signature, .. } = &events[0].kind;
+    assert_eq!(time_signature.numerator, 3);
+    assert_eq!(time_signature.denominator, 4);
+}
+
+#[test]
+fn interpreter_time_signature_zero_errors() {
+    let src = "track 1\ntime_signature 0/4\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let result = interp.schedule_until(0, 1_000_000_000);
+    assert!(
+        result.is_err(),
+        "time_signature 0/4 should be a RuntimeError"
+    );
+}
+
+#[test]
+fn interpreter_global_time_signature_propagates_as_track_default() {
+    let src = "time_signature 3/4\ntrack 1\n<C4> 1/4\ntrack 2\ntime_signature 6/8\n<D4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let track1 = events.iter().find(|e| e.track == 1).unwrap();
+    let track2 = events.iter().find(|e| e.track == 2).unwrap();
+    let EventKind::Note {
+        time_signature: ts1,
+        ..
+    } = &track1.kind;
+    assert_eq!((ts1.numerator, ts1.denominator), (3, 4));
+    let EventKind::Note {
+        time_signature: ts2,
+        ..
+    } = &track2.kind;
+    assert_eq!((ts2.numerator, ts2.denominator), (6, 8));
+}
+
+// ---- Global-scope propagation tests ----
+// These cover the fix to Interpreter::new: global-scope tempo/pan/volume
+// now propagate as per-track defaults, overridable per track.
+
+#[test]
+fn interpreter_global_tempo_pan_volume_propagate_to_tracks() {
+    let src = "tempo 90\npan -20\nvolume 60\ntrack 1\n<C4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { pan, volume, .. } = &events[0].kind;
+    assert_eq!(*pan, -20);
+    assert_eq!(*volume, 60);
+}
+
+#[test]
+fn interpreter_global_tempo_propagates_to_track_timing() {
+    // Same shape as interpreter_tempo_affects_event_timing, but tempo is set
+    // globally instead of per-track, proving the global default propagates.
+    let make = |bpm: usize| {
+        let src = format!("tempo {bpm}\ntrack 1\n<C4> 1/4\n<E4> 1/4");
+        let tokens = Lexer::new(&src).lex().unwrap();
+        let program = Parser::new(tokens).parse().unwrap();
+        let mut interp = Interpreter::new(program).unwrap();
+        interp.schedule_until(0, 1_000_000_000).unwrap()
+    };
+    let slow = make(60);
+    let fast = make(120);
+    assert_eq!(slow.len(), 2);
+    assert_eq!(fast.len(), 2);
+    assert!(
+        slow[1].at > fast[1].at,
+        "60 BPM note should start later than 120 BPM note"
+    );
+}
+
+#[test]
+fn interpreter_track_override_wins_over_global_default() {
+    let src = "tempo 90\npan -20\nvolume 60\ntrack 1\npan 10\nvolume 5\n<C4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { pan, volume, .. } = &events[0].kind;
+    assert_eq!(*pan, 10);
+    assert_eq!(*volume, 5);
 }
 
 // ---- FM block tests ----
