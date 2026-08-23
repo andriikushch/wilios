@@ -26,8 +26,11 @@ top_item        = import_stmt
                 ;
 
 (* `import` merges the target file's global_stmts and tracks into this program.
-   Paths are resolved relative to the importing file. Circular imports are
-   silently skipped. Duplicate imports of the same canonical path are skipped. *)
+   Paths are resolved relative to the importing file. The path must end in
+   `.wilios`, must be relative, and must resolve within the current working
+   directory (the project root) — traversal that escapes it is rejected.
+   Circular imports are silently skipped. Duplicate imports of the same
+   canonical path are skipped. *)
 import_stmt     = "import" , string_lit ;
 
 

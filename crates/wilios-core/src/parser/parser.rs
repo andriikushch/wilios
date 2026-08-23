@@ -418,6 +418,30 @@ impl Parser {
         };
         self.next(); // consume string literal
 
+        // Only .wilios files may be imported
+        let has_wilios_ext = std::path::Path::new(&path_str)
+            .extension()
+            .is_some_and(|ext| ext == "wilios");
+        if !has_wilios_ext {
+            return Err(self.make_error(format!(
+                "cannot resolve import '{}': imports must be .wilios files",
+                path_str
+            )));
+        }
+
+        // Import paths must be relative — absolute paths would let a script
+        // reach any file on disk regardless of base_dir. `has_root()` also
+        // catches paths like `/etc/passwd` on Windows, which are rooted to
+        // the current drive but not `is_absolute()` (that requires a drive
+        // letter or UNC prefix on Windows).
+        let import_path = PathBuf::from(&path_str);
+        if import_path.is_absolute() || import_path.has_root() {
+            return Err(self.make_error(format!(
+                "cannot resolve import '{}': import paths must be relative",
+                path_str
+            )));
+        }
+
         // Resolve path relative to base_dir
         let path = if let Some(ref base) = self.base_dir {
             base.join(&path_str)
@@ -428,6 +452,18 @@ impl Parser {
         let canonical = path
             .canonicalize()
             .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
+
+        // Confine resolved imports to the project directory (the process's
+        // current working directory) so `..` traversal can't escape it.
+        let project_root = std::env::current_dir()
+            .and_then(|dir| dir.canonicalize())
+            .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
+        if !canonical.starts_with(&project_root) {
+            return Err(self.make_error(format!(
+                "cannot resolve import '{}': import escapes the project directory",
+                path_str
+            )));
+        }
 
         // Skip already-loaded files (circular import protection)
         if self.loaded.contains(&canonical) {

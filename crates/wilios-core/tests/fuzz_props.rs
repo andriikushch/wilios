@@ -1,14 +1,14 @@
 use proptest::prelude::*;
-use wilios::interpreter::interpreter::Interpreter;
-use wilios::lexer::Lexer;
-use wilios::parser::ast::Waveform;
-use wilios::parser::parser::Parser;
+use wilios_core::interpreter::interpreter::Interpreter;
+use wilios_core::lexer::Lexer;
+use wilios_core::parser::ast::Waveform;
+use wilios_core::parser::parser::Parser;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn run_pipeline(source: &str) -> Option<Vec<wilios::interpreter::event::Event>> {
+fn run_pipeline(source: &str) -> Option<Vec<wilios_core::interpreter::event::Event>> {
     let Ok(tokens) = Lexer::new(source).lex() else {
         return None;
     };
@@ -203,7 +203,7 @@ proptest! {
         let source = format!("tempo 120\ntrack 1\nvolume {vol}\n<C4> 1/4\n");
         if let Some(events) = run_pipeline(&source) {
             for ev in &events {
-                let wilios::interpreter::event::EventKind::Note { volume, .. } = &ev.kind;
+                let wilios_core::interpreter::event::EventKind::Note { volume, .. } = &ev.kind;
                 prop_assert_eq!(*volume, vol);
             }
         }
@@ -231,7 +231,7 @@ proptest! {
         let mut interp = Interpreter::new(program).unwrap();
         let events = interp.schedule_until(0, 1_000_000_000).unwrap();
         prop_assert_eq!(events.len(), 1);
-        let wilios::interpreter::event::EventKind::Note { waveform, .. } = &events[0].kind;
+        let wilios_core::interpreter::event::EventKind::Note { waveform, .. } = &events[0].kind;
         prop_assert_eq!(waveform, &expected);
     }
 }
@@ -327,10 +327,10 @@ proptest! {
         let mut interp = Interpreter::new(program).unwrap();
         interp.schedule_until(0, 1_000_000_000).unwrap();
         let env = &interp.tracks[0].ctx.env_vars;
-        let got = &env[&wilios::parser::ast::Ident("x".into())];
+        let got = &env[&wilios_core::parser::ast::Ident("x".into())];
         prop_assert_eq!(
             got,
-            &wilios::interpreter::interpreter::Value::Int(elems[idx]),
+            &wilios_core::interpreter::interpreter::Value::Int(elems[idx]),
             "expected a[{}] = {}, got {:?}",
             idx, elems[idx], got
         );
@@ -356,10 +356,10 @@ proptest! {
         let mut interp = Interpreter::new(program).unwrap();
         interp.schedule_until(0, 1_000_000_000).unwrap();
         let env = &interp.tracks[0].ctx.env_vars;
-        let got = &env[&wilios::parser::ast::Ident("n".into())];
+        let got = &env[&wilios_core::parser::ast::Ident("n".into())];
         prop_assert_eq!(
             got,
-            &wilios::interpreter::interpreter::Value::Int(elems.len() as i64),
+            &wilios_core::interpreter::interpreter::Value::Int(elems.len() as i64),
             "expected len = {}, got {:?}", elems.len(), got
         );
     }
@@ -389,10 +389,10 @@ proptest! {
         let mut interp = Interpreter::new(program).unwrap();
         interp.schedule_until(0, 1_000_000_000).unwrap();
         let env = &interp.tracks[0].ctx.env_vars;
-        let got = &env[&wilios::parser::ast::Ident("x".into())];
+        let got = &env[&wilios_core::parser::ast::Ident("x".into())];
         prop_assert_eq!(
             got,
-            &wilios::interpreter::interpreter::Value::Int(new_val),
+            &wilios_core::interpreter::interpreter::Value::Int(new_val),
             "expected a[{}] = {} after assign, got {:?}", idx, new_val, got
         );
     }

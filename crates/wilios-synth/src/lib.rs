@@ -1,15 +1,7 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::f32::consts::PI;
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
-use wilios::interpreter::event::{EventKind, FmBlockConfig, FmOpConfig};
-use wilios::interpreter::interpreter::Interpreter;
-use wilios::interpreter::pitch::{Accidental, Pitch, PitchName, note_frequency};
-use wilios::lexer::Lexer;
-use wilios::parser::ast::Waveform;
-use wilios::parser::parser::Parser;
-// ======================= AUDIO VOICE =======================
+use wilios_core::interpreter::event::{FmBlockConfig, FmOpConfig};
+use wilios_core::parser::ast::Waveform;
 
 #[derive(Clone, Copy)]
 enum EnvState {
@@ -143,7 +135,7 @@ struct OpState {
     last_output: f32, // raw waveform output of previous sample (used for modulation/feedback)
 }
 
-struct Voice {
+pub struct Voice {
     // Legacy 2-op fields (used when op_states is None)
     phase: f32,
     phase_inc: f32,
@@ -171,7 +163,7 @@ struct Voice {
 
 impl Voice {
     #[allow(clippy::too_many_arguments)]
-    fn new(
+    pub fn new(
         freq: f32,
         sample_rate: f32,
         volume: f32,
@@ -307,7 +299,7 @@ impl Voice {
         }
     }
 
-    fn next_sample(&mut self) -> f32 {
+    pub fn next_sample(&mut self) -> f32 {
         if let Some(ops) = &mut self.op_states {
             // ---- Multi-operator FM synthesis ----
             let n = ops.len();
@@ -397,7 +389,7 @@ impl Voice {
         }
     }
 
-    fn finished(&self) -> bool {
+    pub fn finished(&self) -> bool {
         if let Some(ops) = &self.op_states {
             self.remaining_samples == 0 && ops.iter().all(|o| o.env.finished())
         } else {
@@ -408,152 +400,62 @@ impl Voice {
 
 const MASTER_GAIN: f32 = 0.3;
 
-// ======================= MAIN AUDIO LOOP =======================
+/// Mixes active voices into an output buffer, applying a peak limiter and
+/// soft-knee tanh saturation. Owns the limiter's running peak envelope so
+/// state persists correctly across successive audio-callback buffers.
+pub struct Mixer {
+    channels: usize,
+    limiter_release: f32,
+    peak_env: f32,
+}
 
-fn main() {
-    let host = cpal::default_host();
-    let device = host.default_output_device().expect("No output device");
-    let config = device.default_output_config().unwrap();
-    let sample_rate = config.sample_rate().0 as f32;
-    let channels = config.channels() as usize;
-
-    let voices = Arc::new(Mutex::new(Vec::<Voice>::new()));
-
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <file>", args[0]);
-        std::process::exit(1);
+impl Mixer {
+    pub fn new(sample_rate: f32, channels: usize) -> Self {
+        // Peak limiter: instant attack, ~100 ms release
+        let limiter_release = (-1.0_f32 / (sample_rate * 0.1)).exp();
+        Self {
+            channels,
+            limiter_release,
+            peak_env: 0.0,
+        }
     }
-    let file_path = std::path::PathBuf::from(&args[1])
-        .canonicalize()
-        .unwrap_or_else(|e| {
-            eprintln!("Error resolving '{}': {}", args[1], e);
-            std::process::exit(1);
-        });
-    let source = std::fs::read_to_string(&file_path).unwrap_or_else(|e| {
-        eprintln!("Error reading '{}': {}", args[1], e);
-        std::process::exit(1);
-    });
-    let mut l = Lexer::new(&source);
 
-    let tokens = l.lex().unwrap_or_else(|e| {
-        eprintln!("error: {}", e);
-        std::process::exit(1);
-    });
-    let base_dir = file_path.parent().map(|p| p.to_path_buf());
-    let loaded = std::collections::HashSet::from([file_path]);
-    let program = Parser::new_with_context(tokens, base_dir, loaded)
-        .parse()
-        .unwrap_or_else(|e| {
-            eprintln!("parse error: {}", e);
-            std::process::exit(1);
-        });
-
-    // 1️⃣ Create interpreter
-    let interpreter = Interpreter::new(program).expect("runtime error in global scope");
-
-    let voices_cb = voices.clone();
-    let mut interpreter_cb = interpreter.clone();
-    let _start_time = Instant::now();
-
-    // Peak limiter: instant attack, ~100 ms release
-    let limiter_release = (-1.0_f32 / (sample_rate * 0.1)).exp();
-    let mut peak_env: f32 = 0.0_f32;
-    let mut sample_counter: u64 = 0;
-
-    let stream = device
-        .build_output_stream(
-            &config.into(),
-            move |data: &mut [f32], _| {
-                let mut voices_lock = voices_cb.lock().unwrap();
-
-                // Schedule all events for this buffer in one call instead of per-sample.
-                // data.len() == frames * channels; we need frame count for correct timing.
-                let buffer_frames = (data.len() / channels) as u64;
-                let buffer_end_ms =
-                    ((sample_counter + buffer_frames) as f32 / sample_rate * 1000.0) as u64;
-                let events = interpreter_cb
-                    .schedule_until(0, buffer_end_ms)
-                    .unwrap_or_default();
-                for ev in events {
-                    let EventKind::Note {
-                        pitch,
-                        duration,
-                        volume,
-                        waveform,
-                        attack_ms,
-                        decay_ms,
-                        sustain_level,
-                        release_ms,
-                        fm_ratio,
-                        fm_depth,
-                        fm_block,
-                        ..
-                    } = ev.kind;
-                    let freq = note_frequency(
-                        Pitch {
-                            name: PitchName::from_string(pitch.letter),
-                            accidental: Accidental::from_int(pitch.accidental),
-                        },
-                        pitch.octave as u8,
-                    );
-                    voices_lock.push(Voice::new(
-                        freq,
-                        sample_rate,
-                        volume as f32 / 127.0,
-                        duration,
-                        waveform,
-                        attack_ms,
-                        decay_ms,
-                        sustain_level,
-                        release_ms,
-                        fm_ratio,
-                        fm_depth,
-                        fm_block,
-                    ));
-                }
-
-                // Per-frame synthesis: advance voices once per frame, write to all channels.
-                // Iterating over individual samples would call next_sample() `channels` times
-                // per frame, running every voice at `channels`× the correct frequency.
-                for frame in data.chunks_mut(channels) {
-                    let mut mix = 0.0f32;
-                    for v in voices_lock.iter_mut() {
-                        mix += v.next_sample();
-                    }
-                    let pre = mix * MASTER_GAIN;
-                    let abs_pre = pre.abs();
-                    if abs_pre > peak_env {
-                        peak_env = abs_pre; // instant attack
-                    } else {
-                        peak_env *= limiter_release; // ~100 ms release
-                    }
-                    let gain = if peak_env > 1.0 { 1.0 / peak_env } else { 1.0 };
-                    let x = pre * gain;
-                    // Soft-knee tanh saturation: linear below 0.8, smooth rolloff above
-                    const KNEE: f32 = 0.8_f32;
-                    let abs_x = x.abs();
-                    let out = if abs_x < KNEE {
-                        x
-                    } else {
-                        let headroom = 1.0_f32 - KNEE;
-                        let excess = (abs_x - KNEE) / headroom;
-                        x.signum() * (KNEE + headroom * excess.tanh())
-                    };
-                    for ch in frame.iter_mut() {
-                        *ch = out;
-                    }
-                    sample_counter += 1;
-                }
-                voices_lock.retain(|v| !v.finished());
-            },
-            |err| eprintln!("Audio error: {:?}", err),
-            None,
-        )
-        .unwrap();
-
-    stream.play().unwrap();
-
-    println!("Playing DSL program… press Enter to quit");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
+    /// Advances `voices` by one buffer's worth of samples, writing the mixed,
+    /// limited, saturated output into `data` (interleaved by `channels`), and
+    /// drops any voices that finished during this buffer.
+    pub fn process(&mut self, voices: &mut Vec<Voice>, data: &mut [f32]) {
+        for frame in data.chunks_mut(self.channels) {
+            let mut mix = 0.0f32;
+            for v in voices.iter_mut() {
+                mix += v.next_sample();
+            }
+            let pre = mix * MASTER_GAIN;
+            let abs_pre = pre.abs();
+            if abs_pre > self.peak_env {
+                self.peak_env = abs_pre; // instant attack
+            } else {
+                self.peak_env *= self.limiter_release; // ~100 ms release
+            }
+            let gain = if self.peak_env > 1.0 {
+                1.0 / self.peak_env
+            } else {
+                1.0
+            };
+            let x = pre * gain;
+            // Soft-knee tanh saturation: linear below 0.8, smooth rolloff above
+            const KNEE: f32 = 0.8_f32;
+            let abs_x = x.abs();
+            let out = if abs_x < KNEE {
+                x
+            } else {
+                let headroom = 1.0_f32 - KNEE;
+                let excess = (abs_x - KNEE) / headroom;
+                x.signum() * (KNEE + headroom * excess.tanh())
+            };
+            for ch in frame.iter_mut() {
+                *ch = out;
+            }
+        }
+        voices.retain(|v| !v.finished());
+    }
 }

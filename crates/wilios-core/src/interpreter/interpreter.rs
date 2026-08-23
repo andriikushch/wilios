@@ -292,6 +292,14 @@ impl Interpreter {
         Ok(Self { tracks })
     }
 
+    /// True once every track has exhausted its statements and has no
+    /// pending loop/block/function-call frames left to resume.
+    pub fn all_tracks_finished(&self) -> bool {
+        self.tracks
+            .iter()
+            .all(|t| t.ctx.stack.is_empty() && t.ctx.pc >= t.ast.statements.len())
+    }
+
     /// Schedule events in a **frame window**: [from_ms, until_ms)
     pub fn schedule_until(
         &mut self,

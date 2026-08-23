@@ -1,9 +1,9 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use wilios::interpreter::interpreter::Interpreter;
-use wilios::lexer::Lexer;
-use wilios::parser::parser::Parser;
+use wilios_core::interpreter::interpreter::Interpreter;
+use wilios_core::lexer::Lexer;
+use wilios_core::parser::parser::Parser;
 
 // 100 ms: prevents infinite hangs from programs like `loop(true) {}`
 // (empty loop bodies advance no time, so schedule_until never returns).

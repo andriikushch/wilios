@@ -642,14 +642,25 @@ fn parse_with_context(
     Parser::new_with_context(tokens, base_dir, loaded).parse()
 }
 
+// Imports are confined to the project directory (the process's cwd), so
+// fixtures must live inside the repo tree rather than the system temp dir.
+// `target/` is already gitignored, making it a safe scratch location.
+fn import_fixture_dir() -> PathBuf {
+    let dir = std::env::current_dir()
+        .unwrap()
+        .join("target")
+        .join("import_test_fixtures");
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
 #[test]
 fn parse_import_global_stmts() {
-    let path = std::env::temp_dir().join("trx_test_import_global.trx");
-    std::fs::write(&path, "let x = 42\n").unwrap();
+    let dir = import_fixture_dir();
+    std::fs::write(dir.join("wilios_test_import_global.wilios"), "let x = 42\n").unwrap();
 
-    let path_str = path.to_string_lossy().replace('\\', "/");
-    let src = format!("import \"{}\"\nlet y = 1\n", path_str);
-    let program = parse_with_context(&src, None, HashSet::new()).unwrap();
+    let src = "import \"wilios_test_import_global.wilios\"\nlet y = 1\n";
+    let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
 
     // imported let x comes first, then let y
     assert_eq!(
@@ -670,12 +681,15 @@ fn parse_import_global_stmts() {
 
 #[test]
 fn parse_import_track_stmts() {
-    let path = std::env::temp_dir().join("trx_test_import_track.trx");
-    std::fs::write(&path, "track 1\ntempo 120\n").unwrap();
+    let dir = import_fixture_dir();
+    std::fs::write(
+        dir.join("wilios_test_import_track.wilios"),
+        "track 1\ntempo 120\n",
+    )
+    .unwrap();
 
-    let path_str = path.to_string_lossy().replace('\\', "/");
-    let src = format!("import \"{}\"\n", path_str);
-    let program = parse_with_context(&src, None, HashSet::new()).unwrap();
+    let src = "import \"wilios_test_import_track.wilios\"\n";
+    let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
 
     assert_eq!(program.tracks.len(), 1);
     assert_eq!(program.tracks[0].id, 1);
@@ -684,15 +698,20 @@ fn parse_import_track_stmts() {
 
 #[test]
 fn parse_import_merges_same_track() {
-    let lib1 = std::env::temp_dir().join("trx_test_merge1.trx");
-    let lib2 = std::env::temp_dir().join("trx_test_merge2.trx");
-    std::fs::write(&lib1, "track 1\ntempo 120\n").unwrap();
-    std::fs::write(&lib2, "track 1\ntempo 240\n").unwrap();
+    let dir = import_fixture_dir();
+    std::fs::write(
+        dir.join("wilios_test_merge1.wilios"),
+        "track 1\ntempo 120\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("wilios_test_merge2.wilios"),
+        "track 1\ntempo 240\n",
+    )
+    .unwrap();
 
-    let lib1_str = lib1.to_string_lossy().replace('\\', "/");
-    let lib2_str = lib2.to_string_lossy().replace('\\', "/");
-    let src = format!("import \"{}\"\nimport \"{}\"\n", lib1_str, lib2_str);
-    let program = parse_with_context(&src, None, HashSet::new()).unwrap();
+    let src = "import \"wilios_test_merge1.wilios\"\nimport \"wilios_test_merge2.wilios\"\n";
+    let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
 
     // Both tempo stmts end up in track 1
     assert_eq!(program.tracks.len(), 1);
@@ -703,8 +722,9 @@ fn parse_import_merges_same_track() {
 
 #[test]
 fn parse_import_missing_file_error() {
-    let src = "import \"/tmp/trx_does_not_exist_xyz.trx\"\n";
-    let result = parse_with_context(src, None, HashSet::new());
+    let dir = import_fixture_dir();
+    let src = "import \"wilios_does_not_exist_xyz.wilios\"\n";
+    let result = parse_with_context(src, Some(dir), HashSet::new());
     assert!(result.is_err());
     assert!(
         result
@@ -729,9 +749,9 @@ fn parse_import_missing_string_literal_error() {
 
 #[test]
 fn parse_import_circular_protection() {
-    let path = std::env::temp_dir().join("trx_test_circular.trx");
-    let path_str = path.to_string_lossy().replace('\\', "/");
-    std::fs::write(&path, format!("import \"{}\"\nlet x = 1\n", path_str)).unwrap();
+    let dir = import_fixture_dir();
+    let path = dir.join("wilios_test_circular.wilios");
+    std::fs::write(&path, "import \"wilios_test_circular.wilios\"\nlet x = 1\n").unwrap();
 
     let canonical = path.canonicalize().unwrap();
     let base_dir = canonical.parent().map(|p| p.to_path_buf());
@@ -754,12 +774,11 @@ fn parse_import_circular_protection() {
 #[test]
 fn parse_import_duplicate_ignored() {
     // Importing the same file twice produces its stmts only once
-    let path = std::env::temp_dir().join("trx_test_dedup.trx");
-    std::fs::write(&path, "let shared = 99\n").unwrap();
+    let dir = import_fixture_dir();
+    std::fs::write(dir.join("wilios_test_dedup.wilios"), "let shared = 99\n").unwrap();
 
-    let path_str = path.to_string_lossy().replace('\\', "/");
-    let src = format!("import \"{}\"\nimport \"{}\"\n", path_str, path_str);
-    let program = parse_with_context(&src, None, HashSet::new()).unwrap();
+    let src = "import \"wilios_test_dedup.wilios\"\nimport \"wilios_test_dedup.wilios\"\n";
+    let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
 
     // Only one let shared = 99 (second import is skipped)
     assert_eq!(program.global_stmts.len(), 1);
@@ -767,14 +786,12 @@ fn parse_import_duplicate_ignored() {
 
 #[test]
 fn parse_import_relative_path() {
-    // Write lib in temp dir, import it with a relative path from that dir
-    let temp = std::env::temp_dir();
-    let lib_path = temp.join("trx_rel_lib.trx");
-    std::fs::write(&lib_path, "let imported = 7\n").unwrap();
+    // Write lib in the fixture dir, import it with a relative path from that dir
+    let dir = import_fixture_dir();
+    std::fs::write(dir.join("wilios_rel_lib.wilios"), "let imported = 7\n").unwrap();
 
-    let src = "import \"trx_rel_lib.trx\"\n";
-    let base_dir = Some(temp);
-    let program = parse_with_context(src, base_dir, HashSet::new()).unwrap();
+    let src = "import \"wilios_rel_lib.wilios\"\n";
+    let program = parse_with_context(src, Some(dir), HashSet::new()).unwrap();
 
     assert_eq!(
         program.global_stmts,
@@ -782,6 +799,87 @@ fn parse_import_relative_path() {
             name: Ident("imported".into()),
             value: Expr::Int(7)
         },]
+    );
+}
+
+#[test]
+fn parse_import_rejects_non_wilios_extension() {
+    let src = "import \"helper.rs\"\n";
+    let result = parse_with_context(src, None, HashSet::new());
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains(".wilios"));
+}
+
+#[test]
+fn parse_import_rejects_absolute_path() {
+    let src = "import \"/tmp/whatever.wilios\"\n";
+    let result = parse_with_context(src, None, HashSet::new());
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("relative"));
+}
+
+// Builds a `..`-relative path (using `/` separators, which Rust's path
+// APIs accept as separators on every supported OS) from `from` to `to`,
+// by walking up past the named directories they don't share and back
+// down into `to`'s remaining named components. Only `Component::Normal`
+// (actual directory/file names) are considered — `Prefix`/`RootDir`
+// components are skipped, since their raw OS string form is platform-
+// specific (e.g. Windows' `RootDir` stringifies to a literal `\`, and a
+// verbatim `Prefix` to `\\?\C:`), and splicing that into a DSL string
+// literal would either look like an absolute path or, worse, contain a
+// backslash the lexer tries to interpret as an escape sequence.
+fn relative_dotdot_path(from: &std::path::Path, to: &std::path::Path) -> String {
+    fn normal_names(p: &std::path::Path) -> Vec<String> {
+        p.components()
+            .filter_map(|c| match c {
+                std::path::Component::Normal(name) => Some(name.to_string_lossy().into_owned()),
+                _ => None,
+            })
+            .collect()
+    }
+    let from_names = normal_names(from);
+    let to_names = normal_names(to);
+    let common_len = from_names
+        .iter()
+        .zip(to_names.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut parts: Vec<String> = vec!["..".to_string(); from_names.len() - common_len];
+    parts.extend(to_names[common_len..].iter().cloned());
+    parts.join("/")
+}
+
+#[test]
+fn parse_import_rejects_root_escape() {
+    // A real .wilios file that exists outside the project directory (the
+    // process's cwd), placed as a sibling of it rather than in the OS temp
+    // dir: on GitHub Actions Windows runners the repo checkout lives on
+    // `D:` while `%TEMP%` is on `C:`, and a `..`-relative path can never
+    // cross drive letters, so `std::env::temp_dir()` would be unreachable
+    // here no matter how it's traversed.
+    let project_root = std::env::current_dir().unwrap().canonicalize().unwrap();
+    let escape_dir = project_root
+        .parent()
+        .expect("project root has a parent directory")
+        .join("target")
+        .join("wilios_escape_fixtures");
+    std::fs::create_dir_all(&escape_dir).unwrap();
+    let escape_target = escape_dir.join("wilios_escape_target.wilios");
+    std::fs::write(&escape_target, "let x = 1\n").unwrap();
+    let escape_target = escape_target.canonicalize().unwrap();
+
+    let base_dir = Some(import_fixture_dir());
+    let canonical_base = base_dir.as_deref().unwrap().canonicalize().unwrap();
+    let escape_suffix = relative_dotdot_path(&canonical_base, &escape_target);
+
+    let src = format!("import \"{}\"\n", escape_suffix);
+    let result = parse_with_context(&src, base_dir, HashSet::new());
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .message
+            .contains("escapes the project directory")
     );
 }
 

@@ -921,12 +921,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "wilios"
-version = "0.0.1"
+name = "wilios-cli"
+version = "0.0.2"
 dependencies = [
  "cpal",
+ "wilios-core",
+ "wilios-synth",
+]
+
+[[package]]
+name = "wilios-core"
+version = "0.0.2"
+dependencies = [
  "proptest",
  "rand",
+]
+
+[[package]]
+name = "wilios-mcp"
+version = "0.0.2"
+
+[[package]]
+name = "wilios-synth"
+version = "0.0.2"
+dependencies = [
+ "wilios-core",
 ]
 
 [[package]]
