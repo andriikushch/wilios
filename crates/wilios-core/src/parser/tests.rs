@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use super::{Parser, Program, TrackAst};
 use crate::lexer::Lexer;
-use crate::parser::ast::{BinaryOp, Duration, Expr, FmOperator, Ident, Pitch, Stmt, Waveform};
+use crate::parser::ast::{
+    BinaryOp, Duration, Expr, FmOperator, Ident, Pitch, Stmt, TimeSignature, Waveform,
+};
 
 #[test]
 fn parse_tempo_1() {
@@ -22,6 +24,75 @@ fn parse_tempo_1() {
         tracks: vec![tracks],
     };
     assert_eq!(program, expected);
+}
+
+#[test]
+fn parse_time_signature() {
+    let mut l = Lexer::new("track 0\ntime_signature 3/4");
+    let tokens = l.lex().unwrap();
+
+    let program = Parser::new(tokens).parse().unwrap();
+
+    let tracks = TrackAst {
+        id: 0,
+        statements: vec![Stmt::TimeSignature(TimeSignature {
+            numerator: 3,
+            denominator: 4,
+        })],
+    };
+
+    let expected = Program {
+        global_stmts: vec![],
+        tracks: vec![tracks],
+    };
+    assert_eq!(program, expected);
+}
+
+#[test]
+fn parse_time_signature_rejects_dotted() {
+    let mut l = Lexer::new("track 0\ntime_signature 4/4.");
+    let tokens = l.lex().unwrap();
+    let result = Parser::new(tokens).parse();
+    assert!(
+        result.is_err(),
+        "dotted time_signature should be a ParseError"
+    );
+}
+
+#[test]
+fn parse_time_signature_zero_is_parseable() {
+    // Parser accepts 0/4 syntactically; validation happens at runtime.
+    let mut l = Lexer::new("track 0\ntime_signature 0/4");
+    let tokens = l.lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    assert_eq!(
+        program.tracks[0].statements,
+        vec![Stmt::TimeSignature(TimeSignature {
+            numerator: 0,
+            denominator: 4
+        })]
+    );
+}
+
+#[test]
+fn parse_time_signature_global_scoping() {
+    let mut l = Lexer::new("time_signature 3/4\ntrack 1\ntime_signature 6/8\ntrack 2\n<C4> 1/4");
+    let tokens = l.lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    assert_eq!(
+        program.global_stmts,
+        vec![Stmt::TimeSignature(TimeSignature {
+            numerator: 3,
+            denominator: 4
+        })]
+    );
+    assert_eq!(
+        program.tracks[0].statements,
+        vec![Stmt::TimeSignature(TimeSignature {
+            numerator: 6,
+            denominator: 8
+        })]
+    );
 }
 
 #[test]

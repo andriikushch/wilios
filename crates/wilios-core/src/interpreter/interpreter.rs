@@ -9,7 +9,10 @@ use crate::{
         tempo::Tempo,
     },
     parser::{
-        ast::{BinaryOp, Duration, Expr, FmOperator, Ident, Pitch, Stmt, UnaryOp, Waveform},
+        ast::{
+            BinaryOp, Duration, Expr, FmOperator, Ident, Pitch, Stmt, TimeSignature, UnaryOp,
+            Waveform,
+        },
         parser::{Program, TrackAst},
     },
 };
@@ -62,6 +65,7 @@ pub struct TrackContext {
     pub fm_depth: f32,
     pub fm_block: Option<FmBlockConfig>,
     pub swing: f32,
+    pub time_signature: TimeSignature,
 
     pub env_vars: HashMap<Ident, Value>,
     pub saved_envs: Vec<HashMap<Ident, Value>>,
@@ -222,16 +226,19 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new(program: Program) -> Result<Self, RuntimeError> {
-        // Evaluate global statements once to build the shared initial environment.
-        // Let/Assign/Call stmts insert into env_vars without yielding or emitting events.
-        let global_env: HashMap<Ident, Value> = {
+        // Evaluate global statements once against a single "defaults" context.
+        // Let/Assign/Call stmts insert into env_vars without yielding or emitting events;
+        // Tempo/Pan/Volume/TimeSignature/etc. mutate the synth-param fields, which are then
+        // cloned into every track below as that track's starting defaults (overridable
+        // per-track by the same statements inside `track N { ... }`).
+        let mut tmp_ctx = {
             let mut initial_env: HashMap<Ident, Value> = HashMap::new();
             initial_env.insert(Ident("print".into()), Value::Builtin(builtin_print));
             initial_env.insert(Ident("rand".into()), Value::Builtin(builtin_rand));
             initial_env.insert(Ident("transpose".into()), Value::Builtin(builtin_transpose));
             initial_env.insert(Ident("len".into()), Value::Builtin(builtin_len));
 
-            let mut tmp_ctx = TrackContext {
+            TrackContext {
                 track_id: usize::MAX,
                 stack: vec![],
                 time: 0,
@@ -247,45 +254,34 @@ impl Interpreter {
                 fm_depth: 0.0,
                 fm_block: None,
                 swing: 50.0,
+                time_signature: TimeSignature {
+                    numerator: 4,
+                    denominator: 4,
+                },
                 pc: 0,
                 env_vars: initial_env,
                 saved_envs: Vec::new(),
-            };
-            let mut dummy: Vec<Event> = Vec::new();
-            for stmt in &program.global_stmts {
-                Self::exec_stmt(stmt, &mut tmp_ctx, &mut dummy, u64::MAX)?;
             }
-            tmp_ctx.env_vars
         };
+        let mut dummy: Vec<Event> = Vec::new();
+        for stmt in &program.global_stmts {
+            Self::exec_stmt(stmt, &mut tmp_ctx, &mut dummy, u64::MAX)?;
+        }
 
         let tracks = program
             .tracks
             .into_iter()
-            .map(|ast| TrackRunner {
-                ctx: TrackContext {
-                    track_id: ast.id,
-                    stack: vec![Frame::Block {
-                        statements: ast.statements.clone(),
-                        pc: 0,
-                    }],
-                    time: 0,
-                    tempo: Tempo { bpm: 120 },
-                    volume: 100,
-                    pan: 0,
-                    waveform: Waveform::Sine,
-                    attack_ms: 10.0,
-                    decay_ms: 0.0,
-                    sustain_level: 1.0,
-                    release_ms: 100.0,
-                    fm_ratio: 1.0,
-                    fm_depth: 0.0,
-                    fm_block: None,
-                    swing: 50.0,
+            .map(|ast| {
+                let mut ctx = tmp_ctx.clone();
+                ctx.track_id = ast.id;
+                ctx.stack = vec![Frame::Block {
+                    statements: ast.statements.clone(),
                     pc: 0,
-                    env_vars: global_env.clone(),
-                    saved_envs: Vec::new(),
-                },
-                ast,
+                }];
+                ctx.time = 0;
+                ctx.pc = 0;
+                ctx.saved_envs = Vec::new();
+                TrackRunner { ctx, ast }
             })
             .collect();
 
@@ -461,6 +457,7 @@ impl Interpreter {
                                 fm_ratio: ctx.fm_ratio,
                                 fm_depth: ctx.fm_depth,
                                 fm_block: ctx.fm_block.clone(),
+                                time_signature: ctx.time_signature,
                             },
                         });
                     }
@@ -531,6 +528,16 @@ impl Interpreter {
             }
             Stmt::Volume(v) => {
                 ctx.volume = *v;
+                Ok(false)
+            }
+            Stmt::TimeSignature(ts) => {
+                if ts.numerator == 0 || ts.denominator == 0 {
+                    return Err(RuntimeError(format!(
+                        "time_signature: numerator and denominator must both be > 0, got {}/{}",
+                        ts.numerator, ts.denominator
+                    )));
+                }
+                ctx.time_signature = *ts;
                 Ok(false)
             }
             Stmt::Wave(w) => {

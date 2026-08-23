@@ -333,6 +333,7 @@ impl Lexer {
             "tempo" => Some(Token::Tempo),
             "volume" => Some(Token::Volume),
             "pan" => Some(Token::Pan),
+            "time_signature" => Some(Token::TimeSignature),
             "rest" => Some(Token::Rest),
             "loop" => Some(Token::Loop),
             "if" => Some(Token::If),
