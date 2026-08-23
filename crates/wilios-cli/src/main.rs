@@ -14,7 +14,7 @@ fn main() {
     let host = cpal::default_host();
     let device = host.default_output_device().expect("No output device");
     let config = device.default_output_config().unwrap();
-    let sample_rate = config.sample_rate().0 as f32;
+    let sample_rate = config.sample_rate() as f32;
     let channels = config.channels() as usize;
 
     let voices = Arc::new(Mutex::new(Vec::<Voice>::new()));
@@ -64,7 +64,7 @@ fn main() {
 
     let stream = device
         .build_output_stream(
-            &config.into(),
+            config.into(),
             move |data: &mut [f32], _| {
                 let mut voices_lock = voices_cb.lock().unwrap();
 
