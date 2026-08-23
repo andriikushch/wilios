@@ -50,6 +50,7 @@ impl PartialEq for Value {
 pub struct TrackContext {
     pub track_id: TrackId,
     pub time: u64,
+    pub bar_epoch_ms: u64,
     pub pc: usize,         // only for top-level block
     pub stack: Vec<Frame>, // loop or block frames
     pub tempo: Tempo,
@@ -242,6 +243,7 @@ impl Interpreter {
                 track_id: usize::MAX,
                 stack: vec![],
                 time: 0,
+                bar_epoch_ms: 0,
                 tempo: Tempo { bpm: 120 },
                 volume: 100,
                 pan: 0,
@@ -279,6 +281,7 @@ impl Interpreter {
                     pc: 0,
                 }];
                 ctx.time = 0;
+                ctx.bar_epoch_ms = 0;
                 ctx.pc = 0;
                 ctx.saved_envs = Vec::new();
                 TrackRunner { ctx, ast }
@@ -538,6 +541,7 @@ impl Interpreter {
                     )));
                 }
                 ctx.time_signature = *ts;
+                ctx.bar_epoch_ms = ctx.time;
                 Ok(false)
             }
             Stmt::Wave(w) => {
@@ -682,6 +686,7 @@ impl Interpreter {
                     return Err(RuntimeError("Tempo must be greater than 0".into()));
                 }
                 ctx.tempo.bpm = *t as u32;
+                ctx.bar_epoch_ms = ctx.time;
                 Ok(false)
             }
             Stmt::Let { name, value } => {
@@ -794,7 +799,16 @@ impl Interpreter {
             return raw_ms;
         }
         let num_eighths = (raw_ms as f32 / eighth_ms).round() as u64;
-        let start_slot = (ctx.time as f32 / eighth_ms).round() as u64;
+        let bar_len_ms = ctx
+            .tempo
+            .duration_ms(
+                ctx.time_signature.numerator,
+                ctx.time_signature.denominator,
+                false,
+            )
+            .unwrap_or(u64::MAX);
+        let position_in_bar_ms = (ctx.time - ctx.bar_epoch_ms) % bar_len_ms.max(1);
+        let start_slot = (position_in_bar_ms as f32 / eighth_ms).round() as u64;
         let ratio = ctx.swing / 100.0;
         let long_ms = (ms_per_beat * ratio).round() as u64;
         let short_ms = (ms_per_beat * (1.0 - ratio)).round() as u64;

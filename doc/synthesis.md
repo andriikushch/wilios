@@ -36,7 +36,7 @@ All synthesis parameters are **per-track**. When a track starts it inherits thes
 | `tempo` | `120` | BPM, integer |
 | `volume` | `100` | 0–127, integer |
 | `pan` | `0` | −127 (left) to +127 (right) |
-| `time_signature` | `4/4` | numerator/denominator, both > 0 (metadata only) |
+| `time_signature` | `4/4` | numerator/denominator, both > 0 (anchors swing's bar phase; does not affect note/rest duration) |
 | `wave` | `sine` | `sine` `square` `saw` `tri` |
 | `attack` | `10` | milliseconds, ≥ 0 |
 | `decay` | `0` | milliseconds, ≥ 0 |
@@ -109,6 +109,8 @@ pan 127      // hard right
 
 Applies a swing feel to 8th-note pairs. Notes on the **on-beat** (even) 8th-note slot are lengthened; notes on the **off-beat** (odd) slot are shortened. Quarter notes and longer values are unaffected. Notes shorter than an 8th pass through unchanged.
 
+The on-beat/off-beat slot count resets at the start of every bar, as declared by [`time_signature`](#time-signature) — the first note of each bar is always the on-beat (long) slot.
+
 ```
 swing integer_or_float
 ```
@@ -150,7 +152,7 @@ Both integer and float literals are accepted: `swing 67` and `swing 67.0` are eq
 
 ### Time Signature
 
-Declares the meter as `numerator/denominator`. This is **metadata only**: it's stamped onto every emitted Note event, but wilios has no bar/measure concept, so it has no effect on duration or timing math.
+Declares the meter as `numerator/denominator`. wilios has no bar/measure concept beyond this: **note and rest durations are always beats/division against tempo, independent of `time_signature`** — a `1/8` note is the same length whether the track is in 4/4 or 5/8. What `time_signature` *does* control is where each bar boundary falls, which anchors [swing](#swing)'s on-beat/off-beat phase: the first note of every bar is always the on-beat (long) slot, and it's also stamped onto every emitted Note event as metadata.
 
 ```
 time_signature integer/integer
@@ -162,18 +164,20 @@ time_signature 3/4   // waltz time
 time_signature 6/8   // compound time
 ```
 
-Both numerator and denominator must be greater than 0; violating this is a runtime error. Settable in global scope (a default for every track) or per track (a local override):
+Both numerator and denominator must be greater than 0; violating this is a runtime error. Setting `time_signature` (or `tempo`, since bar length in ms depends on both) starts a fresh bar-boundary count from that point — swing's phase resets to on-beat at the very next note rather than continuing whatever phase was in progress. Settable in global scope (a default for every track) or per track (a local override):
 
 ```wilios
 time_signature 3/4    // default for every track
 
 track 1
-<C4> 1/4               // inherits 3/4 (not shown on this event's audio — metadata only)
+<C4> 1/4               // inherits 3/4
 
 track 2
-time_signature 6/8     // overrides the global default here
+time_signature 6/8     // overrides the global default here — also resets swing phase here
 <G3> 1/4
 ```
+
+For meters with an even number of eighth-notes per bar (4/4, 3/4, 6/8, 2/4, …), bar boundaries always land on the same swing slot parity that a naive continuous eighth-note clock would produce anyway, so swing behaves identically either way. It matters for meters with an *odd* eighth-note count per bar (5/8, 7/8, …): without bar-boundary anchoring, which slot counts as "on-beat" would silently flip every other bar; with it, the first note of every bar is always on-beat.
 
 ---
 
