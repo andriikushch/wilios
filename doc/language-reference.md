@@ -356,7 +356,7 @@ pan 127     // hard right
 
 #### Swing
 
-Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. Accepts an integer or float literal.
+Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. Accepts an integer or float literal. The on-beat/off-beat slot count resets at the start of every bar (see [Time Signature](#time-signature) below) — the first note of each bar is always on-beat.
 
 ```
 swing integer_or_float
@@ -378,7 +378,9 @@ See [synthesis.md — Swing](synthesis.md#swing) for a detailed description and 
 
 #### Time Signature
 
-Declare the meter as `numerator/denominator`. Defaults to `4/4`. Purely metadata — it's stamped onto emitted Note events but has no effect on duration/timing math (wilios has no bar/measure concept yet). Reuses the duration literal shape (see [§6 Duration Syntax](#6-duration-syntax)) but rejects the dotted form. Both numerator and denominator must be greater than 0 — that's a runtime error, not a parse error.
+Declare the meter as `numerator/denominator`. Defaults to `4/4`. Reuses the duration literal shape (see [§6 Duration Syntax](#6-duration-syntax)) but rejects the dotted form. Both numerator and denominator must be greater than 0 — that's a runtime error, not a parse error.
+
+**Note/rest durations are unaffected**: wilios has no bar/measure concept beyond bar-boundary tracking, so a `1/8` note is always the same length regardless of `time_signature`. What `time_signature` does control is where each bar boundary falls, which anchors [swing](#swing)'s on-beat/off-beat phase (the first note of every bar is always on-beat) and is also stamped onto every emitted Note event as metadata. Setting `time_signature` (or `tempo`, since bar length in ms depends on both) starts a fresh bar count from that point, resetting swing's phase immediately.
 
 ```
 time_signature integer/integer

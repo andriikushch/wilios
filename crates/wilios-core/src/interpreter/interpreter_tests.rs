@@ -810,3 +810,69 @@ fn swing_100_max_swing() {
     assert_eq!(*d1, 500);
     assert_eq!(*d2, 500);
 }
+
+#[test]
+fn swing_5_8_resets_at_bar_boundary() {
+    // 5/8 has an odd eighth-note count per bar, so a track-start-anchored swing
+    // clock would flip which slot is "on-beat" every other bar. Bar-relative
+    // phase must instead reset: the first note of every bar is on-beat (long),
+    // regardless of how many bars have elapsed.
+    // At 120 BPM: eighth_ms=250ms, swing 67 -> long=335ms, short=165ms.
+    // Bar length (5/8) = duration_ms(5, 8, false) = 1250ms.
+    let src = "track 1\ntempo 120\ntime_signature 5/8\nswing 67\n\
+               <C4> 1/8\n<D4> 1/8\n<E4> 1/8\n<F4> 1/8\n<G4> 1/8\n\
+               <C4> 1/8\n<D4> 1/8\n<E4> 1/8\n<F4> 1/8\n<G4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 10);
+    let EventKind::Note {
+        duration: bar1_first,
+        ..
+    } = &events[0].kind;
+    let EventKind::Note {
+        duration: bar2_first,
+        ..
+    } = &events[5].kind;
+    assert_eq!(*bar1_first, 335, "first note of bar 1 is on-beat (long)");
+    assert_eq!(
+        *bar2_first, 335,
+        "first note of bar 2 must also be on-beat (long) — a track-start-anchored \
+         clock would have made this the short off-beat slot instead"
+    );
+}
+
+#[test]
+fn swing_time_signature_change_resets_bar_phase() {
+    // A mid-track time_signature change re-epochs the bar clock, so the very next
+    // note starts a fresh bar and lands back on the on-beat (long) slot.
+    // At 120 BPM, swing 67: long=335ms, short=165ms.
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/8\ntime_signature 3/4\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 335, "first note is on-beat (long)");
+    assert_eq!(
+        *d2, 335,
+        "note right after a time_signature change should re-epoch to on-beat (long), \
+         not continue the old off-beat slot"
+    );
+}
+
+#[test]
+fn swing_tempo_change_resets_bar_phase() {
+    // A mid-track tempo change also re-epochs the bar clock, since bar length in ms
+    // depends on tempo. At 120 BPM the first note is long (335ms); after switching
+    // to 100 BPM (ms_per_beat=600, eighth_ms=300, long=round(600*0.67)=402ms) the
+    // next note should re-epoch to on-beat (long), not the off-beat slot it would
+    // land on if the bar clock kept counting from track start.
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/8\ntempo 100\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 335, "first note (120 BPM) is on-beat (long)");
+    assert_eq!(
+        *d2, 402,
+        "note right after a tempo change should re-epoch to on-beat (long) at the new tempo"
+    );
+}
