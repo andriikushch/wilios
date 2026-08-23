@@ -4,15 +4,15 @@
 //! that the lexer + parser accept exactly the constructs the grammar
 //! specifies and reject constructs outside it.
 
-use wilios::lexer::Lexer;
-use wilios::parser::ast::*;
-use wilios::parser::parser::Parser;
+use wilios_core::lexer::Lexer;
+use wilios_core::parser::ast::*;
+use wilios_core::parser::parser::Parser;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn lex_ok(src: &str) -> Vec<wilios::lexer::Spanned<wilios::lexer::Token>> {
+fn lex_ok(src: &str) -> Vec<wilios_core::lexer::Spanned<wilios_core::lexer::Token>> {
     Lexer::new(src)
         .lex()
         .unwrap_or_else(|e| panic!("lex error on {:?}: {}", src, e))
@@ -26,7 +26,7 @@ fn lex_err(src: &str) {
     );
 }
 
-fn parse_ok(src: &str) -> wilios::parser::parser::Program {
+fn parse_ok(src: &str) -> wilios_core::parser::parser::Program {
     let tokens = lex_ok(src);
     Parser::new(tokens)
         .parse()

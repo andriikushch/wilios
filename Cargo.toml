@@ -1,11 +1,23 @@
-[package]
-name = "wilios"
+[workspace]
+resolver = "2"
+members = [
+    "crates/wilios-core",
+    "crates/wilios-synth",
+    "crates/wilios-cli",
+    "crates/wilios-mcp",
+]
+default-members = ["crates/wilios-cli"]
+exclude = ["fuzz"]
+
+[workspace.package]
 version = "0.0.2"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/andriikushch/wilios"
 
-[dependencies]
+[workspace.dependencies]
 rand = "0.9.2"
 cpal = "0.15"
-
-[dev-dependencies]
-proptest = "1"
+num-rational = "0.4"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"

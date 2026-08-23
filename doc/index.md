@@ -92,7 +92,11 @@ Press **Enter** to stop playback.
 │   ├── synthesis.md
 │   ├── stdlib.md
 │   └── grammar.ebnf
-└── src/                   # Rust implementation
+└── crates/                # Rust implementation (Cargo workspace)
+    ├── wilios-core/       # Lexer, parser, interpreter
+    ├── wilios-synth/      # FM synthesis + voice mixer
+    ├── wilios-cli/        # cpal audio engine + CLI (binary: wilios)
+    └── wilios-mcp/        # Placeholder crate (not implemented yet)
 ```
 
 ---

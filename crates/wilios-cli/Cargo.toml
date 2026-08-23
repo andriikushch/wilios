@@ -1,0 +1,15 @@
+[package]
+name = "wilios-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "wilios"
+path = "src/main.rs"
+
+[dependencies]
+wilios-core = { path = "../wilios-core" }
+wilios-synth = { path = "../wilios-synth" }
+cpal.workspace = true

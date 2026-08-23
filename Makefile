@@ -6,7 +6,7 @@ TARGETS = \
 	x86_64-pc-windows-gnu
 
 fmt:
-	cargo fmt
+	cargo fmt --all
 
 build:
 	cargo build --release
@@ -36,13 +36,13 @@ test:
 	# leaving any extra words ("lex_simple_note_sharp") to forward to cargo as
 	# a test-name filter.
 	# Result: `make test lex_simple_note_sharp` → `cargo test lex_simple_note_sharp`
-	cargo test $(filter-out $@,$(MAKECMDGOALS))
+	cargo test --workspace $(filter-out $@,$(MAKECMDGOALS))
 
 grammar-check:
-	cargo test --test grammar_check
+	cargo test -p wilios-core --test grammar_check
 
 test-all: test grammar-check
-	cargo test --test fuzz_props && \
+	cargo test -p wilios-core --test fuzz_props && \
 	cargo +nightly fuzz run fuzz_lexer -- -max_total_time=30 && \
 	cargo +nightly fuzz run fuzz_parser -- -max_total_time=30 && \
 	cargo +nightly fuzz run fuzz_interpreter -- -max_total_time=30

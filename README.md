@@ -127,17 +127,23 @@ The TextMate grammar (`vscode-wilios/syntaxes/wilios.tmLanguage.json`) is genera
 
 ## Project Structure
 
+This is a Cargo workspace. `crates/wilios-core` must never depend on `cpal` or anything
+that touches an audio device — enforced by a CI check (`cargo tree -p wilios-core`).
+
 ```
-src/
-  lexer/          Tokenizer
-  parser/         AST parser (Pratt expressions, two-token lookahead)
-  interpreter/    Pull-based execution engine, track runners
-  main.rs         cpal audio engine, voice mixer, FM synthesis
+crates/
+  wilios-core/    Lexer, parser, interpreter (the DSL itself; no audio dependency)
+    src/lexer/       Tokenizer
+    src/parser/       AST parser (Pratt expressions, two-token lookahead)
+    src/interpreter/  Pull-based execution engine, track runners
+    tests/            Integration tests, property-based tests
+  wilios-synth/   FM synthesis + voice mixer (Voice, Envelope, Mixer/limiter)
+  wilios-cli/     cpal audio engine + CLI arg handling (binary: `wilios`)
+  wilios-mcp/     Placeholder crate (not implemented yet)
 examples/         Example .wilios compositions
 lib/              Standard FM preset library (lib.wilios)
 doc/              Language reference, stdlib docs, synthesis notes, grammar
-tests/            Integration tests, property-based tests
-fuzz/             libfuzzer targets for lexer, parser, interpreter
+fuzz/             libfuzzer targets for lexer, parser, interpreter (against wilios-core)
 tools/            Development tools (gen_grammar.py — EBNF → tmLanguage.json)
 vscode-wilios/    VS Code syntax highlighting extension
 ```
@@ -145,11 +151,11 @@ vscode-wilios/    VS Code syntax highlighting extension
 ## Testing
 
 ```bash
-# All tests
-cargo test
+# All tests (workspace-wide)
+cargo test --workspace
 
 # Property-based tests
-cargo test --test fuzz_props
+cargo test -p wilios-core --test fuzz_props
 
 # Fuzz targets (requires nightly + cargo-fuzz)
 cargo +nightly fuzz run fuzz_lexer
