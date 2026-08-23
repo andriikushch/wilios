@@ -851,8 +851,20 @@ fn relative_dotdot_path(from: &std::path::Path, to: &std::path::Path) -> String 
 
 #[test]
 fn parse_import_rejects_root_escape() {
-    // A real .wilios file that exists outside the project directory
-    let escape_target = std::env::temp_dir().join("wilios_escape_target.wilios");
+    // A real .wilios file that exists outside the project directory (the
+    // process's cwd), placed as a sibling of it rather than in the OS temp
+    // dir: on GitHub Actions Windows runners the repo checkout lives on
+    // `D:` while `%TEMP%` is on `C:`, and a `..`-relative path can never
+    // cross drive letters, so `std::env::temp_dir()` would be unreachable
+    // here no matter how it's traversed.
+    let project_root = std::env::current_dir().unwrap().canonicalize().unwrap();
+    let escape_dir = project_root
+        .parent()
+        .expect("project root has a parent directory")
+        .join("target")
+        .join("wilios_escape_fixtures");
+    std::fs::create_dir_all(&escape_dir).unwrap();
+    let escape_target = escape_dir.join("wilios_escape_target.wilios");
     std::fs::write(&escape_target, "let x = 1\n").unwrap();
     let escape_target = escape_target.canonicalize().unwrap();
 
