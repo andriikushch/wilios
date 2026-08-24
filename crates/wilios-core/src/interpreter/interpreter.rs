@@ -15,10 +15,17 @@ use crate::{
         },
         parser::{Program, TrackAst},
     },
+    time::{self, Beats, TempoHistory},
 };
 
 #[derive(Debug)]
 pub struct RuntimeError(pub String);
+
+impl From<time::TimeError> for RuntimeError {
+    fn from(e: time::TimeError) -> Self {
+        RuntimeError(e.to_string())
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -49,8 +56,16 @@ impl PartialEq for Value {
 #[derive(Clone)]
 pub struct TrackContext {
     pub track_id: TrackId,
+    /// Authoritative ms position — derived fresh from `nominal_position` via
+    /// `tempo_history.ms_at(..)` after every note/rest, not accumulated.
     pub time: u64,
-    pub bar_epoch_ms: u64,
+    /// Exact nominal position (whole-note units) since track start. Two
+    /// tracks with the same tempo history that reach the same
+    /// `nominal_position` are guaranteed the same `time`, regardless of how
+    /// differently subdivided the path there was.
+    pub nominal_position: Beats,
+    pub bar_epoch_beats: Beats,
+    pub tempo_history: TempoHistory,
     pub pc: usize,         // only for top-level block
     pub stack: Vec<Frame>, // loop or block frames
     pub tempo: Tempo,
@@ -243,7 +258,9 @@ impl Interpreter {
                 track_id: usize::MAX,
                 stack: vec![],
                 time: 0,
-                bar_epoch_ms: 0,
+                nominal_position: Beats::from_integer(0),
+                bar_epoch_beats: Beats::from_integer(0),
+                tempo_history: TempoHistory::new(120),
                 tempo: Tempo { bpm: 120 },
                 volume: 100,
                 pan: 0,
@@ -281,7 +298,12 @@ impl Interpreter {
                     pc: 0,
                 }];
                 ctx.time = 0;
-                ctx.bar_epoch_ms = 0;
+                ctx.nominal_position = Beats::from_integer(0);
+                ctx.bar_epoch_beats = Beats::from_integer(0);
+                // Fresh single breakpoint — must not inherit tempo-change
+                // history accumulated while executing global-scope statements
+                // against `tmp_ctx`.
+                ctx.tempo_history.reset(ctx.tempo.bpm);
                 ctx.pc = 0;
                 ctx.saved_envs = Vec::new();
                 TrackRunner { ctx, ast }
@@ -383,12 +405,14 @@ impl Interpreter {
 
                 // 2️⃣ Compute duration if note/rest
                 let stmt_start = track.ctx.time;
-                let _stmt_dur = match &stmt {
+                match &stmt {
                     Stmt::Chord { duration, .. } => {
-                        Self::eval_duration_ms(duration, &mut track.ctx)?
+                        Self::eval_duration_beats(duration, &mut track.ctx)?;
                     }
-                    Stmt::Rest { duration } => Self::eval_duration_ms(duration, &mut track.ctx)?,
-                    _ => 0,
+                    Stmt::Rest { duration } => {
+                        Self::eval_duration_beats(duration, &mut track.ctx)?;
+                    }
+                    _ => {}
                 };
 
                 if stmt_start >= until_ms {
@@ -426,8 +450,8 @@ impl Interpreter {
     ) -> Result<bool, RuntimeError> {
         match stmt {
             Stmt::Chord { duration, pitches } => {
-                let raw_ms = Self::eval_duration_ms(duration, ctx)?;
-                let dur_ms = Self::apply_swing(raw_ms, ctx);
+                let dur_beats = Self::eval_duration_beats(duration, ctx)?;
+                let (swung_beats, dur_ms) = Self::apply_swing_beats(dur_beats, ctx)?;
 
                 if ctx.time < until_ms {
                     let mut resolved: Vec<Pitch> = Vec::new();
@@ -446,10 +470,12 @@ impl Interpreter {
                     for pitch in resolved {
                         out.push(Event {
                             at: ctx.time,
+                            at_beats: ctx.nominal_position,
                             track: ctx.track_id,
                             kind: EventKind::Note {
                                 pitch,
                                 duration: dur_ms,
+                                duration_beats: swung_beats,
                                 volume: ctx.volume,
                                 pan: ctx.pan,
                                 waveform: ctx.waveform.clone(),
@@ -465,13 +491,17 @@ impl Interpreter {
                         });
                     }
                 }
-                ctx.time += dur_ms;
+                ctx.nominal_position =
+                    time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
+                ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
                 Ok(false)
             }
             Stmt::Rest { duration } => {
-                let raw_ms = Self::eval_duration_ms(duration, ctx)?;
-                let dur_ms = Self::apply_swing(raw_ms, ctx);
-                ctx.time += dur_ms;
+                let dur_beats = Self::eval_duration_beats(duration, ctx)?;
+                let (swung_beats, _dur_ms) = Self::apply_swing_beats(dur_beats, ctx)?;
+                ctx.nominal_position =
+                    time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
+                ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
                 Ok(false)
             }
             Stmt::Loop { condition, body } => {
@@ -541,7 +571,7 @@ impl Interpreter {
                     )));
                 }
                 ctx.time_signature = *ts;
-                ctx.bar_epoch_ms = ctx.time;
+                ctx.bar_epoch_beats = ctx.nominal_position;
                 Ok(false)
             }
             Stmt::Wave(w) => {
@@ -686,7 +716,9 @@ impl Interpreter {
                     return Err(RuntimeError("Tempo must be greater than 0".into()));
                 }
                 ctx.tempo.bpm = *t as u32;
-                ctx.bar_epoch_ms = ctx.time;
+                ctx.bar_epoch_beats = ctx.nominal_position;
+                ctx.tempo_history
+                    .record_tempo_change(ctx.nominal_position, ctx.tempo.bpm)?;
                 Ok(false)
             }
             Stmt::Let { name, value } => {
@@ -785,59 +817,83 @@ impl Interpreter {
         }
     }
 
-    fn apply_swing(raw_ms: u64, ctx: &TrackContext) -> u64 {
-        if (ctx.swing - 50.0).abs() < f32::EPSILON {
-            return raw_ms;
+    /// Same rules as `doc/synthesis.md`'s Swing section, re-derived from exact
+    /// beats instead of post-hoc ms: on-beat/even 8th-slot lengthened,
+    /// off-beat/odd shortened, quarter+ unaffected, sub-eighth passthrough.
+    /// Slot parity comes from the exact bar-relative nominal position, so it
+    /// can never be misclassified by ms-side rounding drift near a boundary.
+    /// Returns the swung duration in both beats (for `nominal_position`
+    /// advancement / `Event.duration_beats`) and ms (for `Event.duration`).
+    fn apply_swing_beats(
+        duration_beats: Beats,
+        ctx: &TrackContext,
+    ) -> Result<(Beats, u64), RuntimeError> {
+        let bpm = ctx.tempo.bpm;
+        let eighth_beats = Beats::new(1, 8);
+        if (ctx.swing - 50.0).abs() < f32::EPSILON || bpm == 0 || duration_beats < eighth_beats {
+            let ms = time::beats_delta_to_ms(duration_beats, bpm)?;
+            return Ok((duration_beats, ms));
         }
-        let bpm = ctx.tempo.bpm as f32;
-        if bpm == 0.0 {
-            return raw_ms;
+
+        let quarter_beats = Beats::new(1, 4);
+        // 3-decimal-place precision on the swing ratio itself (not just the
+        // percent) — reproduces every existing swing test exactly.
+        let swing_ratio = Beats::new((ctx.swing as f64 * 1000.0).round() as i64, 100_000);
+        let long_beats = time::checked_mul(quarter_beats, swing_ratio, "swing long slot")?;
+        // Deriving `short` as the exact complement of `long` (not independently
+        // from `1 - ratio`) is what guarantees long+short == quarter_beats
+        // exactly, making "quarter+ unaffected" a real invariant.
+        let short_beats = time::checked_sub(quarter_beats, long_beats, "swing short slot")?;
+
+        let bar_len_beats = Beats::new(
+            ctx.time_signature.numerator as i64,
+            ctx.time_signature.denominator as i64,
+        );
+        let position_since_epoch = time::checked_sub(
+            ctx.nominal_position,
+            ctx.bar_epoch_beats,
+            "swing bar position",
+        )?;
+        let position_in_bar =
+            time::rem_euclid(position_since_epoch, bar_len_beats, "swing bar position")?;
+        let start_slot = time::round_half_up(position_in_bar / eighth_beats);
+        let num_slots = time::round_half_up(duration_beats / eighth_beats);
+
+        let mut swung_beats = Beats::from_integer(0);
+        for i in 0..num_slots {
+            let slot_beats = if (start_slot + i).is_multiple_of(2) {
+                long_beats
+            } else {
+                short_beats
+            };
+            swung_beats = time::checked_add(swung_beats, slot_beats, "swing sum")?;
         }
-        let ms_per_beat = 60_000.0 / bpm;
-        let eighth_ms = ms_per_beat / 2.0;
-        if (raw_ms as f32) < eighth_ms {
-            return raw_ms;
-        }
-        let num_eighths = (raw_ms as f32 / eighth_ms).round() as u64;
-        let bar_len_ms = ctx
-            .tempo
-            .duration_ms(
-                ctx.time_signature.numerator,
-                ctx.time_signature.denominator,
-                false,
-            )
-            .unwrap_or(u64::MAX);
-        let position_in_bar_ms = (ctx.time - ctx.bar_epoch_ms) % bar_len_ms.max(1);
-        let start_slot = (position_in_bar_ms as f32 / eighth_ms).round() as u64;
-        let ratio = ctx.swing / 100.0;
-        let long_ms = (ms_per_beat * ratio).round() as u64;
-        let short_ms = (ms_per_beat * (1.0 - ratio)).round() as u64;
-        (0..num_eighths)
-            .map(|i| {
-                if (start_slot + i).is_multiple_of(2) {
-                    long_ms
-                } else {
-                    short_ms
-                }
-            })
-            .sum()
+        let ms = time::beats_delta_to_ms(swung_beats, bpm)?;
+        Ok((swung_beats, ms))
     }
 
-    fn eval_duration_ms(duration: &Duration, ctx: &mut TrackContext) -> Result<u64, RuntimeError> {
+    fn eval_duration_beats(
+        duration: &Duration,
+        ctx: &mut TrackContext,
+    ) -> Result<Beats, RuntimeError> {
         let beats = match Self::eval(&duration.beats, ctx)? {
-            Value::Int(v) => v as usize,
+            Value::Int(v) => v,
             _ => return Err(RuntimeError("Duration beats must be int".into())),
         };
-        if beats == 0 {
-            return Err(RuntimeError("Duration beats must be > 0".into()));
-        }
         let division = match Self::eval(&duration.division, ctx)? {
-            Value::Int(v) => v as usize,
+            Value::Int(v) => v,
             _ => return Err(RuntimeError("Duration division must be int".into())),
         };
-        ctx.tempo
-            .duration_ms(beats, division, duration.dotted)
-            .map_err(RuntimeError)
+        let context = format!(
+            "track {} duration {}/{}{} (line {})",
+            ctx.track_id,
+            beats,
+            division,
+            if duration.dotted { "." } else { "" },
+            duration.line
+        );
+        time::beats_from_duration(beats, division, duration.dotted, &context)
+            .map_err(RuntimeError::from)
     }
 
     fn eval(expr: &Expr, ctx: &mut TrackContext) -> Result<Value, RuntimeError> {

@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::parser::ast::{Pitch, TimeSignature, Waveform};
+use crate::time::Beats;
 
 /// A single FM operator's evaluated configuration (snapshotted at note-emit time).
 #[derive(Clone, Debug, PartialEq)]
@@ -28,6 +29,11 @@ pub type TimeMs = u64; // todo
 #[derive(Clone)]
 pub struct Event {
     pub at: TimeMs,
+    /// Exact nominal position (whole-note units) this event's `at` was derived
+    /// from. Two tracks reaching the same `at_beats` via different subdivision
+    /// paths are guaranteed to share the same `at` — useful for analysis/tests,
+    /// and a disagreement between the two is meaningful (e.g. swing), not noise.
+    pub at_beats: Beats,
     pub track: TrackId,
     pub kind: EventKind,
 }
@@ -63,6 +69,7 @@ pub enum EventKind {
     Note {
         pitch: Pitch,
         duration: TimeMs,
+        duration_beats: Beats,
         pan: isize,
         volume: usize,
         waveform: Waveform,

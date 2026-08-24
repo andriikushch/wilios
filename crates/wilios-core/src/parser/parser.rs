@@ -965,6 +965,8 @@ impl Parser {
     }
 
     fn parse_duration(&mut self) -> Result<Duration, ParseError> {
+        let line = self.current_pos().0;
+
         // Path A: numeric literal like "1/4" or "1/4."
         if let Some(Token::Duration {
             beats,
@@ -976,6 +978,7 @@ impl Parser {
                 beats: Expr::Int(*beats),
                 division: Expr::Int(*division),
                 dotted: *dotted,
+                line,
             };
             self.next();
             return Ok(d);
@@ -1018,6 +1021,7 @@ impl Parser {
             beats,
             division,
             dotted: false,
+            line,
         })
     }
 }
