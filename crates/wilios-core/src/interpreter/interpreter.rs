@@ -496,6 +496,12 @@ impl Interpreter {
                 ctx.nominal_position =
                     time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
                 ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
+                tracing::debug!(
+                    track = ctx.track_id,
+                    nominal_position = %ctx.nominal_position,
+                    time_ms = ctx.time,
+                    "track position advanced (note)"
+                );
                 Ok(false)
             }
             Stmt::Rest { duration } => {
@@ -504,6 +510,12 @@ impl Interpreter {
                 ctx.nominal_position =
                     time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
                 ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
+                tracing::debug!(
+                    track = ctx.track_id,
+                    nominal_position = %ctx.nominal_position,
+                    time_ms = ctx.time,
+                    "track position advanced (rest)"
+                );
                 Ok(false)
             }
             Stmt::Loop { condition, body } => {
