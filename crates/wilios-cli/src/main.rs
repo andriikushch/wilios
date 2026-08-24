@@ -60,7 +60,6 @@ fn main() {
             std::process::exit(1);
         });
 
-    // 1️⃣ Create interpreter
     let interpreter = Interpreter::new(program).expect("runtime error in global scope");
 
     let voices_cb = voices.clone();

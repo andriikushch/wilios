@@ -1,19 +1,12 @@
-//! Exact-rational musical time.
-//!
-//! `Beats` represents a nominal position or duration in whole-note units
-//! (`1/4` in the DSL is exactly `Beats::new(1, 4)`). Durations and track
-//! positions are accumulated exactly here; conversion to milliseconds
-//! happens once, at the point a value is actually needed, via a per-track
-//! [`TempoHistory`] — never by summing already-rounded deltas.
+//! Exact-rational musical time: `Beats` (whole-note units, `1/4` = `Beats::new(1, 4)`)
+//! is accumulated exactly; ms is derived once per lookup via [`TempoHistory`], never
+//! summed from already-rounded deltas.
 
 use num_rational::Ratio;
 
 pub type Beats = Ratio<i64>;
 
-/// Early diagnostic threshold. Not the safety net (checked arithmetic is) —
-/// just a point past which a denominator is certainly a computed-duration
-/// mistake (e.g. `1/n` inside a loop where `n` happened to be a large or
-/// prime runtime value) rather than a musically meaningful tuplet.
+/// Diagnostic threshold for an implausible denominator — checked arithmetic is the real overflow guard.
 pub const MAX_DENOM: i64 = 1 << 24;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,8 +18,7 @@ pub enum TimeError {
     Overflow {
         context: String,
     },
-    /// Display text must stay exactly "Duration division cannot be zero" —
-    /// `interpreter_tests.rs::interpreter_rest_division_by_zero` string-matches it.
+    /// Display text is pinned to "Duration division cannot be zero" (string-matched by a test).
     ZeroDivision,
     NonPositiveBeats {
         context: String,
@@ -63,8 +55,7 @@ fn gcd_i128(a: i128, b: i128) -> i128 {
     a
 }
 
-/// Reduce an arbitrary-precision numer/denom pair to lowest terms and pack
-/// it into a `Beats` (`i64`-backed), or report why it doesn't fit.
+/// Reduce a numer/denom pair to lowest terms and pack into a `Beats`, or report why it doesn't fit.
 fn reduce_and_pack(numer: i128, denom: i128, context: &str) -> Result<Beats, TimeError> {
     debug_assert!(denom != 0);
     let (mut numer, mut denom) = (numer, denom);
@@ -138,9 +129,7 @@ pub fn rem_euclid(a: Beats, m: Beats, context: &str) -> Result<Beats, TimeError>
     checked_sub(a, checked_mul(q, m, context)?, context)
 }
 
-/// A DSL duration (`beats`/`division`, as written — e.g. `1/3`) as an exact
-/// `Beats` value in whole-note units, `* 3/2` if dotted. `1/4` => `1/4`
-/// (a quarter note); three `1/3`s sum to exactly `1` (a whole note).
+/// A DSL duration (`beats`/`division`) as an exact `Beats` value in whole-note units, `* 3/2` if dotted.
 pub fn beats_from_duration(
     beats: i64,
     division: i64,
@@ -163,9 +152,8 @@ pub fn beats_from_duration(
     }
 }
 
-/// A `Beats` delta (whole-note units) at a single constant tempo, rounded
-/// once (round-half-up) to whole milliseconds. `240_000 = 4 * 60_000`: a
-/// whole note is 4 quarter notes, each `60_000 / bpm` ms long.
+/// A `Beats` delta at one constant tempo, rounded once to whole ms.
+/// `240_000 = 4 * 60_000`: a whole note is 4 quarter notes, each `60_000/bpm` ms.
 pub fn beats_delta_to_ms(delta: Beats, bpm: u32) -> Result<u64, TimeError> {
     if bpm == 0 {
         return Err(TimeError::Overflow {
@@ -177,8 +165,7 @@ pub fn beats_delta_to_ms(delta: Beats, bpm: u32) -> Result<u64, TimeError> {
     Ok(round_half_up(ms))
 }
 
-/// Round a nonnegative exact `Beats`-typed ms value to the nearest whole ms
-/// (ties round up), via an `i128` intermediate to avoid overflow.
+/// Round-half-up a nonnegative exact ms value to `u64`, via `i128` to avoid overflow.
 pub fn round_half_up(r: Beats) -> u64 {
     let numer = *r.numer() as i128;
     let denom = *r.denom() as i128;
@@ -191,17 +178,12 @@ pub fn round_half_up(r: Beats) -> u64 {
 struct Breakpoint {
     position: Beats,
     bpm: u32,
-    /// Exact (unrounded) ms elapsed to reach `position`, at whatever tempo
-    /// history preceded it. Precomputed once when the breakpoint is added,
-    /// so later lookups never re-walk earlier segments.
+    /// Exact ms to reach `position`, precomputed once so lookups never re-walk earlier segments.
     cumulative_ms: Beats,
 }
 
-/// A track's tempo timeline: an ordered list of (position, bpm) breakpoints.
-/// `Stmt::Tempo` only affects notes going forward from where it's executed
-/// (no retroactive recompute of already-emitted events) — this mirrors that
-/// by construction: earlier breakpoints' `cumulative_ms` never changes once
-/// a later one is appended.
+/// A track's tempo timeline: ordered (position, bpm) breakpoints. Tempo changes only
+/// affect notes going forward — earlier breakpoints' `cumulative_ms` never changes.
 #[derive(Clone, Debug)]
 pub struct TempoHistory {
     breakpoints: Vec<Breakpoint>,
@@ -218,9 +200,7 @@ impl TempoHistory {
         }
     }
 
-    /// Reset to a fresh single breakpoint at position 0 — used when a
-    /// `TrackContext` (re)starts, so a track never inherits tempo-change
-    /// breakpoints accumulated while executing global-scope statements.
+    /// Fresh single breakpoint at position 0 — a (re)started track must not inherit global-scope tempo history.
     pub fn reset(&mut self, bpm: u32) {
         *self = TempoHistory::new(bpm);
     }
@@ -242,11 +222,8 @@ impl TempoHistory {
         Ok(())
     }
 
-    /// Exact (unrounded) cumulative ms elapsed to reach `position`, expressed
-    /// as a `Beats`-typed ms value. Binary-searches the active segment
-    /// (`O(log n)`) instead of re-walking from position 0 every call, so a
-    /// pathological `Stmt::Tempo` inside a `Stmt::Loop` (up to `MAX_STEPS`
-    /// breakpoints) stays `O(n log n)` overall rather than `O(n^2)`.
+    /// Exact cumulative ms to reach `position`. Binary-searches the active segment instead
+    /// of re-walking from 0, so tempo changes inside a loop stay `O(n log n)`, not `O(n^2)`.
     fn exact_ms_at(&self, position: Beats) -> Result<Beats, TimeError> {
         let idx = self
             .breakpoints
@@ -258,11 +235,8 @@ impl TempoHistory {
         checked_add(active.cumulative_ms, segment_ms, "cumulative ms")
     }
 
-    /// The authoritative ms position for `position` — a pure function of the
-    /// exact nominal position and this track's tempo history, not an
-    /// accumulator. Two tracks with the same tempo history that reach the
-    /// same nominal `position` (however differently subdivided the path
-    /// there was) get bit-identical results.
+    /// The authoritative ms for `position` — a pure function of position and tempo history,
+    /// not an accumulator, so the same nominal position always gives bit-identical results.
     pub fn ms_at(&self, position: Beats) -> Result<u64, TimeError> {
         Ok(round_half_up(self.exact_ms_at(position)?))
     }

@@ -56,13 +56,9 @@ impl PartialEq for Value {
 #[derive(Clone)]
 pub struct TrackContext {
     pub track_id: TrackId,
-    /// Authoritative ms position — derived fresh from `nominal_position` via
-    /// `tempo_history.ms_at(..)` after every note/rest, not accumulated.
+    /// Authoritative ms position, derived fresh from `nominal_position` each step (not accumulated).
     pub time: u64,
-    /// Exact nominal position (whole-note units) since track start. Two
-    /// tracks with the same tempo history that reach the same
-    /// `nominal_position` are guaranteed the same `time`, regardless of how
-    /// differently subdivided the path there was.
+    /// Exact nominal position (whole-note units) since track start.
     pub nominal_position: Beats,
     pub bar_epoch_beats: Beats,
     pub tempo_history: TempoHistory,
@@ -302,9 +298,7 @@ impl Interpreter {
                 ctx.time = 0;
                 ctx.nominal_position = Beats::from_integer(0);
                 ctx.bar_epoch_beats = Beats::from_integer(0);
-                // Fresh single breakpoint — must not inherit tempo-change
-                // history accumulated while executing global-scope statements
-                // against `tmp_ctx`.
+                // Don't inherit tempo history from global-scope execution.
                 ctx.tempo_history.reset(ctx.tempo.bpm);
                 ctx.pc = 0;
                 ctx.saved_envs = Vec::new();
@@ -339,7 +333,6 @@ impl Interpreter {
                     break;
                 }
                 steps += 1;
-                // 1️⃣ Determine next statement
                 let stmt_opt = if let Some(frame) = track.ctx.stack.last().cloned() {
                     match frame {
                         Frame::Block { statements, pc }
@@ -368,13 +361,11 @@ impl Interpreter {
                 let stmt = match stmt_opt {
                     Some(s) => s,
                     None => {
-                        // End of frame / no statement
                         if let Some(frame) = track.ctx.stack.pop() {
                             match frame {
                                 Frame::Loop {
                                     condition, body, ..
                                 } => {
-                                    // Re-evaluate loop condition
                                     if let Value::Bool(true) =
                                         Self::eval(&condition, &mut track.ctx)?
                                     {
@@ -405,7 +396,6 @@ impl Interpreter {
                     }
                 };
 
-                // 2️⃣ Compute duration if note/rest
                 let stmt_start = track.ctx.time;
                 match &stmt {
                     Stmt::Chord { duration, .. } => {
@@ -418,13 +408,10 @@ impl Interpreter {
                 };
 
                 if stmt_start >= until_ms {
-                    // Reached end of this frame
                     break;
                 }
 
-                // 3️⃣ Execute statement
                 if !Self::exec_stmt(&stmt, &mut track.ctx, &mut out, until_ms)? {
-                    // Advance pc
                     if let Some(frame) = track.ctx.stack.last_mut() {
                         match frame {
                             Frame::Block { pc, .. }
@@ -831,13 +818,9 @@ impl Interpreter {
         }
     }
 
-    /// Same rules as `doc/synthesis.md`'s Swing section, re-derived from exact
-    /// beats instead of post-hoc ms: on-beat/even 8th-slot lengthened,
-    /// off-beat/odd shortened, quarter+ unaffected, sub-eighth passthrough.
-    /// Slot parity comes from the exact bar-relative nominal position, so it
-    /// can never be misclassified by ms-side rounding drift near a boundary.
-    /// Returns the swung duration in both beats (for `nominal_position`
-    /// advancement / `Event.duration_beats`) and ms (for `Event.duration`).
+    /// Swing rules from `doc/synthesis.md`, re-derived from exact beats instead of ms so
+    /// slot parity can't be misclassified by ms-side rounding. Returns the duration in
+    /// both beats (`nominal_position`/`Event.duration_beats`) and ms (`Event.duration`).
     fn apply_swing_beats(
         duration_beats: Beats,
         ctx: &TrackContext,
@@ -850,13 +833,11 @@ impl Interpreter {
         }
 
         let quarter_beats = Beats::new(1, 4);
-        // 3-decimal-place precision on the swing ratio itself (not just the
-        // percent) — reproduces every existing swing test exactly.
+        // 3-decimal precision on the ratio reproduces every existing swing test exactly.
         let swing_ratio = Beats::new((ctx.swing as f64 * 1000.0).round() as i64, 100_000);
         let long_beats = time::checked_mul(quarter_beats, swing_ratio, "swing long slot")?;
-        // Deriving `short` as the exact complement of `long` (not independently
-        // from `1 - ratio`) is what guarantees long+short == quarter_beats
-        // exactly, making "quarter+ unaffected" a real invariant.
+        // Exact complement of `long`, not independently from `1 - ratio` — guarantees
+        // long+short == quarter_beats exactly, so quarter+ notes are truly unaffected.
         let short_beats = time::checked_sub(quarter_beats, long_beats, "swing short slot")?;
 
         let bar_len_beats = Beats::new(

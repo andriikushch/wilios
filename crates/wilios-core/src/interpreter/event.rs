@@ -29,10 +29,8 @@ pub type TimeMs = u64; // todo
 #[derive(Clone)]
 pub struct Event {
     pub at: TimeMs,
-    /// Exact nominal position (whole-note units) this event's `at` was derived
-    /// from. Two tracks reaching the same `at_beats` via different subdivision
-    /// paths are guaranteed to share the same `at` — useful for analysis/tests,
-    /// and a disagreement between the two is meaningful (e.g. swing), not noise.
+    /// Exact nominal position `at` was derived from. Two tracks reaching the same
+    /// `at_beats` are guaranteed the same `at`, regardless of subdivision path.
     pub at_beats: Beats,
     pub track: TrackId,
     pub kind: EventKind,
