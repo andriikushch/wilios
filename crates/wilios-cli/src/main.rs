@@ -11,6 +11,17 @@ use wilios_core::parser::parser::Parser;
 use wilios_synth::{Mixer, Voice};
 
 fn main() {
+    // stderr, not stdout: this binary's logic is the template for wilios-mcp,
+    // which will reserve stdout for its own protocol framing. RUST_LOG (e.g.
+    // `RUST_LOG=debug`) controls verbosity; defaults to info-level.
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     let host = cpal::default_host();
     let device = host.default_output_device().expect("No output device");
     let config = device.default_output_config().unwrap();
@@ -21,23 +32,23 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: {} <file>", args[0]);
+        tracing::error!("Usage: {} <file>", args[0]);
         std::process::exit(1);
     }
     let file_path = std::path::PathBuf::from(&args[1])
         .canonicalize()
         .unwrap_or_else(|e| {
-            eprintln!("Error resolving '{}': {}", args[1], e);
+            tracing::error!("Error resolving '{}': {}", args[1], e);
             std::process::exit(1);
         });
     let source = std::fs::read_to_string(&file_path).unwrap_or_else(|e| {
-        eprintln!("Error reading '{}': {}", args[1], e);
+        tracing::error!("Error reading '{}': {}", args[1], e);
         std::process::exit(1);
     });
     let mut l = Lexer::new(&source);
 
     let tokens = l.lex().unwrap_or_else(|e| {
-        eprintln!("error: {}", e);
+        tracing::error!("error: {}", e);
         std::process::exit(1);
     });
     let base_dir = file_path.parent().map(|p| p.to_path_buf());
@@ -45,11 +56,10 @@ fn main() {
     let program = Parser::new_with_context(tokens, base_dir, loaded)
         .parse()
         .unwrap_or_else(|e| {
-            eprintln!("parse error: {}", e);
+            tracing::error!("parse error: {}", e);
             std::process::exit(1);
         });
 
-    // 1️⃣ Create interpreter
     let interpreter = Interpreter::new(program).expect("runtime error in global scope");
 
     let voices_cb = voices.clone();
@@ -121,14 +131,14 @@ fn main() {
                     finished_cb.store(true, Ordering::Relaxed);
                 }
             },
-            |err| eprintln!("Audio error: {:?}", err),
+            |err| tracing::error!("Audio error: {:?}", err),
             None,
         )
         .unwrap();
 
     stream.play().unwrap();
 
-    println!("Playing DSL program… press Enter to quit early, or wait for it to finish");
+    tracing::info!("Playing DSL program… press Enter to quit early, or wait for it to finish");
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut buf = String::new();

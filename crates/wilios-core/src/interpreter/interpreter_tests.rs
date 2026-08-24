@@ -876,3 +876,78 @@ fn swing_tempo_change_resets_bar_phase() {
         "note right after a tempo change should re-epoch to on-beat (long) at the new tempo"
     );
 }
+
+#[test]
+fn triplets_sum_to_exact_whole_note() {
+    // Three 1/3 triplets plus four 1/4 quarters (both = one whole note) must
+    // land the marker note at exactly 4000ms at 120 BPM. Under the old f32-
+    // truncating accumulator this would come in short (three 1/3s alone lost
+    // 2ms to truncation: 1998ms instead of 2000ms).
+    let src = "track 1\ntempo 120\n\
+               <C4> 1/3\n<C4> 1/3\n<C4> 1/3\n\
+               <C4> 1/4\n<C4> 1/4\n<C4> 1/4\n<C4> 1/4\n\
+               <D4> 1/4";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 8);
+    let marker = &events[7];
+    assert_eq!(marker.at, 4000, "marker should land at exactly 4000ms");
+    assert_eq!(
+        marker.at_beats,
+        crate::time::Beats::from_integer(2),
+        "marker's nominal position should be exactly 2 whole notes, no residual"
+    );
+}
+
+#[test]
+fn cross_track_convergence() {
+    // Track 1 reaches "one whole note in" via three 1/3 triplets; track 2
+    // reaches the same nominal position via four plain 1/4 notes. Despite
+    // entirely different subdivision paths, the marker note on each track
+    // must land at bit-identical `at`/`at_beats` — this is the core guarantee
+    // the exact-beats design exists to provide.
+    let src = "track 1\ntempo 120\n\
+               <C4> 1/3\n<C4> 1/3\n<C4> 1/3\n<D4> 1/4\n\
+               track 2\ntempo 120\n\
+               <C4> 1/4\n<C4> 1/4\n<C4> 1/4\n<C4> 1/4\n<D4> 1/4";
+    let events = interp_events(src);
+
+    let track1_marker = events.iter().rfind(|e| e.track == 1).unwrap();
+    let track2_marker = events.iter().rfind(|e| e.track == 2).unwrap();
+
+    assert_eq!(
+        track1_marker.at, track2_marker.at,
+        "tracks with different subdivisions must converge to the same ms at the same nominal position"
+    );
+    assert_eq!(
+        track1_marker.at_beats, track2_marker.at_beats,
+        "nominal beat positions must also match exactly"
+    );
+    assert_eq!(track1_marker.at, 2000);
+    assert_eq!(track1_marker.at_beats, crate::time::Beats::from_integer(1));
+}
+
+#[test]
+fn pathological_denominator_path_b_errors() {
+    // Path B durations only accept a bare identifier or int literal, so the
+    // realistic overflow surface is a runtime variable's value (e.g. a
+    // computed division inside a loop), never a compound expression. This
+    // mirrors that: `n` is a plain variable holding an implausibly large
+    // denominator. Both sides must be identifiers here — the lexer greedily
+    // consumes a leading digit together with the following `/` (so `1/n`
+    // fails to lex at all, as confirmed by `duration_variable_beats` only
+    // ever exercising the `<ident>/<int>` shape) — so `one` stands in for
+    // the literal `1` on the beats side.
+    let src = "let one = 1\nlet n = 100000000\ntrack 1\ntempo 120\n<C4> one/n";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let result = interp.schedule_until(0, 1_000_000_000);
+    match result {
+        Err(err) => assert!(
+            err.0.contains("denominator"),
+            "error should name the problem, got: {}",
+            err.0
+        ),
+        Ok(_) => panic!("implausibly large computed denominator should error"),
+    }
+}

@@ -25,6 +25,7 @@ pub struct Duration {
     pub beats: Expr,
     pub division: Expr,
     pub dotted: bool,
+    pub line: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
