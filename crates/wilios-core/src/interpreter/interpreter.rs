@@ -135,7 +135,9 @@ fn format_value(v: &Value) -> String {
 
 fn builtin_print(args: Vec<Value>) -> Result<Value, RuntimeError> {
     let parts: Vec<String> = args.iter().map(format_value).collect();
-    println!("{}", parts.join(" "));
+    // stderr, not stdout: wilios-core can be embedded in a host (e.g. an MCP
+    // server) that reserves stdout for its own protocol framing.
+    tracing::info!("{}", parts.join(" "));
     Ok(Value::Int(0))
 }
 
@@ -711,7 +713,7 @@ impl Interpreter {
                 Ok(false)
             }
             Stmt::Tempo(t) => {
-                println!("new tempo {}, track id: {}", *t, ctx.track_id);
+                tracing::debug!(new_tempo = *t, track_id = ctx.track_id, "tempo changed");
                 if *t == 0 {
                     return Err(RuntimeError("Tempo must be greater than 0".into()));
                 }
@@ -768,7 +770,7 @@ impl Interpreter {
                         Ok(false)
                     }
                     _ => {
-                        eprintln!("Call: callee is not a function");
+                        tracing::warn!("Call: callee is not a function");
                         Ok(false)
                     }
                 }

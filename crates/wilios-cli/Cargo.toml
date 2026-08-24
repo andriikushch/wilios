@@ -13,3 +13,5 @@ path = "src/main.rs"
 wilios-core = { path = "../wilios-core" }
 wilios-synth = { path = "../wilios-synth" }
 cpal.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

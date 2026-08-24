@@ -8,6 +8,7 @@ repository.workspace = true
 [dependencies]
 rand.workspace = true
 num-rational.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 proptest = "1"
