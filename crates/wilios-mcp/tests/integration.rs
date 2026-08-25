@@ -73,7 +73,11 @@ const LIST: &str = r#"{"jsonrpc":"2.0","id":2,"method":"resources/list","params"
 fn list_resources_returns_five_resources() {
     let responses = run(&[INIT, LIST]);
     let resources = responses[1]["result"]["resources"].as_array().unwrap();
-    assert_eq!(resources.len(), 5, "expected 5 resources, got: {resources:?}");
+    assert_eq!(
+        resources.len(),
+        5,
+        "expected 5 resources, got: {resources:?}"
+    );
 }
 
 #[test]
@@ -126,7 +130,10 @@ fn read_grammar_returns_ebnf() {
         .as_str()
         .expect("expected text content");
     assert!(text.contains("(*"), "expected EBNF comment markers");
-    assert!(text.contains("program"), "expected 'program' rule in grammar");
+    assert!(
+        text.contains("program"),
+        "expected 'program' rule in grammar"
+    );
 }
 
 // ── resources/read: disk-based files ─────────────────────────────────────────
@@ -139,7 +146,10 @@ fn read_lib_presets_contains_fm_presets() {
         .as_str()
         .expect("expected text content");
     for preset in &["epiano", "brass", "bass", "kick", "snare"] {
-        assert!(text.contains(preset), "expected preset '{preset}' in lib/lib.wilios");
+        assert!(
+            text.contains(preset),
+            "expected preset '{preset}' in lib/lib.wilios"
+        );
     }
 }
 
@@ -150,7 +160,10 @@ fn read_full_piece_example_contains_track_statements() {
     let text = responses[1]["result"]["contents"][0]["text"]
         .as_str()
         .expect("expected text content");
-    assert!(text.contains("track"), "expected 'track' keyword in example");
+    assert!(
+        text.contains("track"),
+        "expected 'track' keyword in example"
+    );
 }
 
 #[test]
@@ -160,7 +173,10 @@ fn read_swing_example_contains_swing_parameter() {
     let text = responses[1]["result"]["contents"][0]["text"]
         .as_str()
         .expect("expected text content");
-    assert!(text.contains("swing"), "expected 'swing' keyword in swing example");
+    assert!(
+        text.contains("swing"),
+        "expected 'swing' keyword in swing example"
+    );
 }
 
 // ── resources/read: error handling ───────────────────────────────────────────

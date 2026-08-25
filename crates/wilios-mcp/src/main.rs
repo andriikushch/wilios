@@ -1,13 +1,12 @@
 use anyhow::Result;
 use rmcp::{
-    ServerHandler, ServiceExt,
+    RoleServer, ServerHandler, ServiceExt,
     model::{
         Implementation, InitializeResult, ListResourcesResult, PaginatedRequestParams,
         ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
         ResourceContents, ServerCapabilities,
     },
     service::RequestContext,
-    RoleServer,
 };
 
 struct WiliosMcp;
@@ -15,10 +14,7 @@ struct WiliosMcp;
 impl ServerHandler for WiliosMcp {
     fn get_info(&self) -> rmcp::model::ServerInfo {
         InitializeResult::new(ServerCapabilities::builder().enable_resources().build())
-            .with_server_info(Implementation::new(
-                "wilios-mcp",
-                env!("CARGO_PKG_VERSION"),
-            ))
+            .with_server_info(Implementation::new("wilios-mcp", env!("CARGO_PKG_VERSION")))
     }
 
     async fn list_resources(
@@ -61,7 +57,7 @@ impl ServerHandler for WiliosMcp {
                 return Err(rmcp::ErrorData::resource_not_found(
                     format!("Unknown resource: {uri}"),
                     None,
-                ))
+                ));
             }
         };
 
