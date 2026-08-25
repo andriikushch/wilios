@@ -12,7 +12,7 @@ MCP server for the [wilios](../../README.md) music DSL. Exposes wilios documenta
 | `wilios://examples/full-piece` | Multi-track composition example |
 | `wilios://examples/swing` | Swing/feel example |
 
-The two doc resources are embedded at compile time from `doc/language-reference.md` and `doc/grammar.ebnf` — they update automatically on the next build when those files change. The remaining three are read from disk at request time so they always reflect the latest file contents.
+All resources are embedded at compile time, so the binary works from any working directory and has no runtime file dependencies.
 
 ## Build
 
@@ -25,8 +25,6 @@ cargo build --release -p wilios-mcp
 ```
 
 ## Configuring Claude Code
-
-Run this from the wilios repository root so the server can find the example files at their relative paths:
 
 ```bash
 claude mcp add --scope project wilios -- /absolute/path/to/target/release/wilios-mcp
@@ -46,10 +44,6 @@ Verify the server is connected:
 claude mcp list
 ```
 
-### Working directory
-
-The server must be started from the wilios repository root (Claude Code does this automatically when the project is open). The disk-based resources (`lib/lib.wilios`, `examples/*.wilios`) are read relative to the current working directory.
-
 ## Configuring Claude Desktop
 
 Add the following to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`):
@@ -59,11 +53,8 @@ Add the following to `claude_desktop_config.json` (macOS: `~/Library/Application
   "mcpServers": {
     "wilios": {
       "command": "/absolute/path/to/target/release/wilios-mcp",
-      "args": [],
-      "cwd": "/absolute/path/to/wilios/repo"
+      "args": []
     }
   }
 }
 ```
-
-The `cwd` field ensures the server can find the disk-based resources regardless of where Claude Desktop is launched from.
