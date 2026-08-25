@@ -52,23 +52,11 @@ impl ServerHandler for WiliosMcp {
     ) -> Result<ReadResourceResponse, rmcp::ErrorData> {
         let uri = request.uri.as_str();
         let (text, mime) = match uri {
-            "wilios://docs/language-reference" => (LANGUAGE_REFERENCE.to_string(), "text/markdown"),
-            "wilios://docs/grammar" => (GRAMMAR.to_string(), "text/plain"),
-            "wilios://lib/presets" => (
-                std::fs::read_to_string("lib/lib.wilios")
-                    .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?,
-                "text/plain",
-            ),
-            "wilios://examples/full-piece" => (
-                std::fs::read_to_string("examples/example_1.wilios")
-                    .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?,
-                "text/plain",
-            ),
-            "wilios://examples/swing" => (
-                std::fs::read_to_string("examples/example_swing.wilios")
-                    .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?,
-                "text/plain",
-            ),
+            "wilios://docs/language-reference" => (LANGUAGE_REFERENCE, "text/markdown"),
+            "wilios://docs/grammar" => (GRAMMAR, "text/plain"),
+            "wilios://lib/presets" => (LIB_PRESETS, "text/plain"),
+            "wilios://examples/full-piece" => (EXAMPLE_FULL_PIECE, "text/plain"),
+            "wilios://examples/swing" => (EXAMPLE_SWING, "text/plain"),
             _ => {
                 return Err(rmcp::ErrorData::resource_not_found(
                     format!("Unknown resource: {uri}"),
@@ -84,9 +72,12 @@ impl ServerHandler for WiliosMcp {
     }
 }
 
-// Embedded at compile time from the canonical doc files — no separate file to maintain
+// All resources embedded at compile time — binary works from any working directory
 const LANGUAGE_REFERENCE: &str = include_str!("../../../doc/language-reference.md");
 const GRAMMAR: &str = include_str!("../../../doc/grammar.ebnf");
+const LIB_PRESETS: &str = include_str!("../../../lib/lib.wilios");
+const EXAMPLE_FULL_PIECE: &str = include_str!("../../../examples/example_1.wilios");
+const EXAMPLE_SWING: &str = include_str!("../../../examples/example_swing.wilios");
 
 #[tokio::main]
 async fn main() -> Result<()> {
