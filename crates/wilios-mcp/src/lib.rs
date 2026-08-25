@@ -1,1 +1,1 @@
-// Placeholder crate — MCP server not implemented yet.
+//! MCP server for the wilios music DSL.
