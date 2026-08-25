@@ -27,9 +27,12 @@ impl ServerHandler for WiliosMcp {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, rmcp::ErrorData> {
         Ok(ListResourcesResult::with_all_items(vec![
-            Resource::new("wilios://docs/syntax", "Wilios DSL Syntax Reference")
-                .with_description("Complete grammar reference for the wilios music DSL")
+            Resource::new("wilios://docs/language-reference", "Wilios Language Reference")
+                .with_description("Complete language reference for the wilios music DSL")
                 .with_mime_type("text/markdown"),
+            Resource::new("wilios://docs/grammar", "Wilios Grammar (EBNF)")
+                .with_description("Formal ISO 14977 EBNF grammar for the wilios DSL")
+                .with_mime_type("text/plain"),
             Resource::new("wilios://lib/presets", "FM Preset Library")
                 .with_description("9 FM synthesis presets: epiano, brass, bass, marimba, strings, kick, snare, hihat_c, hihat_o")
                 .with_mime_type("text/plain"),
@@ -49,7 +52,8 @@ impl ServerHandler for WiliosMcp {
     ) -> Result<ReadResourceResponse, rmcp::ErrorData> {
         let uri = request.uri.as_str();
         let (text, mime) = match uri {
-            "wilios://docs/syntax" => (SYNTAX_REFERENCE.to_string(), "text/markdown"),
+            "wilios://docs/language-reference" => (LANGUAGE_REFERENCE.to_string(), "text/markdown"),
+            "wilios://docs/grammar" => (GRAMMAR.to_string(), "text/plain"),
             "wilios://lib/presets" => (
                 std::fs::read_to_string("lib/lib.wilios")
                     .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?,
@@ -80,8 +84,9 @@ impl ServerHandler for WiliosMcp {
     }
 }
 
-// Syntax reference embedded at compile time — works from any CWD
-const SYNTAX_REFERENCE: &str = include_str!("syntax.md");
+// Embedded at compile time from the canonical doc files — no separate file to maintain
+const LANGUAGE_REFERENCE: &str = include_str!("../../../doc/language-reference.md");
+const GRAMMAR: &str = include_str!("../../../doc/grammar.ebnf");
 
 #[tokio::main]
 async fn main() -> Result<()> {
