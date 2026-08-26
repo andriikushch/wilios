@@ -43,6 +43,25 @@ fn read_req(id: u32, uri: &str) -> String {
     format!(r#"{{"jsonrpc":"2.0","id":{id},"method":"resources/read","params":{{"uri":"{uri}"}}}}"#)
 }
 
+fn call_tool_req(id: u32, name: &str, arguments: serde_json::Value) -> String {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "tools/call",
+        "params": {"name": name, "arguments": arguments}
+    })
+    .to_string()
+}
+
+/// The `content[0].text` of a `tools/call` response, parsed as JSON — tool
+/// results are returned as a JSON string inside a text content block.
+fn tool_result_json(response: &serde_json::Value) -> serde_json::Value {
+    let text = response["result"]["content"][0]["text"]
+        .as_str()
+        .expect("expected text content in tool result");
+    serde_json::from_str(text).expect("tool result text was not valid JSON")
+}
+
 // ── initialize ────────────────────────────────────────────────────────────────
 
 #[test]
@@ -177,6 +196,103 @@ fn read_swing_example_contains_swing_parameter() {
         text.contains("swing"),
         "expected 'swing' keyword in swing example"
     );
+}
+
+// ── tools/list ────────────────────────────────────────────────────────────────
+
+const LIST_TOOLS: &str = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
+
+#[test]
+fn list_tools_returns_describe_symbol_and_search_stdlib() {
+    let responses = run(&[INIT, LIST_TOOLS]);
+    let tools = responses[1]["result"]["tools"].as_array().unwrap();
+    let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+    assert_eq!(names.len(), 2, "expected exactly 2 tools, got: {names:?}");
+    assert!(names.contains(&"describe_symbol"));
+    assert!(names.contains(&"search_stdlib"));
+}
+
+// ── tools/call: describe_symbol ─────────────────────────────────────────────
+
+#[test]
+fn describe_symbol_returns_doc_for_known_builtin() {
+    let req = call_tool_req(2, "describe_symbol", serde_json::json!({"name": "print"}));
+    let responses = run(&[INIT, &req]);
+    assert_eq!(responses[1]["result"]["isError"], serde_json::json!(false));
+    let symbol = tool_result_json(&responses[1]);
+    assert_eq!(symbol["name"], serde_json::json!("print"));
+    assert_eq!(symbol["kind"], serde_json::json!("builtin"));
+    assert!(symbol["signature"].as_str().unwrap().contains("print"));
+}
+
+#[test]
+fn describe_symbol_returns_doc_for_known_preset() {
+    let req = call_tool_req(2, "describe_symbol", serde_json::json!({"name": "epiano"}));
+    let responses = run(&[INIT, &req]);
+    let symbol = tool_result_json(&responses[1]);
+    assert_eq!(symbol["name"], serde_json::json!("epiano"));
+    assert_eq!(symbol["kind"], serde_json::json!("preset"));
+    assert_eq!(symbol["category"], serde_json::json!("tonal"));
+}
+
+#[test]
+fn describe_symbol_unknown_name_is_an_error_result() {
+    let req = call_tool_req(
+        2,
+        "describe_symbol",
+        serde_json::json!({"name": "does_not_exist"}),
+    );
+    let responses = run(&[INIT, &req]);
+    assert_eq!(
+        responses[1]["result"]["isError"],
+        serde_json::json!(true),
+        "expected isError:true, got: {}",
+        responses[1]
+    );
+}
+
+// ── tools/call: search_stdlib ───────────────────────────────────────────────
+
+#[test]
+fn search_stdlib_finds_matches_by_name_substring() {
+    let req = call_tool_req(2, "search_stdlib", serde_json::json!({"query": "trans"}));
+    let responses = run(&[INIT, &req]);
+    let matches = tool_result_json(&responses[1]);
+    let names: Vec<&str> = matches
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["name"].as_str().unwrap())
+        .collect();
+    assert!(
+        names.contains(&"transpose"),
+        "expected 'transpose' in {names:?}"
+    );
+}
+
+#[test]
+fn search_stdlib_no_matches_returns_empty_success() {
+    let req = call_tool_req(
+        2,
+        "search_stdlib",
+        serde_json::json!({"query": "zzznotfound"}),
+    );
+    let responses = run(&[INIT, &req]);
+    assert_eq!(responses[1]["result"]["isError"], serde_json::json!(false));
+    let matches = tool_result_json(&responses[1]);
+    assert_eq!(matches, serde_json::json!([]));
+}
+
+// ── naming-collision guard ──────────────────────────────────────────────────
+
+#[test]
+fn tool_names_do_not_shadow_stdlib_symbols() {
+    for tool in ["describe_symbol", "search_stdlib"] {
+        assert!(
+            wilios_core::stdlib::find(tool).is_none(),
+            "MCP tool '{tool}' shadows a DSL stdlib symbol — rename it (e.g. append _source)"
+        );
+    }
 }
 
 // ── resources/read: error handling ───────────────────────────────────────────

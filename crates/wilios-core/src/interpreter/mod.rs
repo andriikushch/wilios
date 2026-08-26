@@ -5,4 +5,4 @@ pub mod interpreter;
 pub mod pitch;
 mod tempo;
 
-pub use interpreter::RuntimeError;
+pub use interpreter::{BUILTINS, BuiltinSpec, RuntimeError};

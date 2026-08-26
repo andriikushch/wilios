@@ -233,6 +233,51 @@ fn builtin_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
     }
 }
 
+/// A built-in function's registration, doubling as its documentation entry
+/// for `wilios-mcp`'s `describe_symbol`/`search_stdlib` tools. `name`/`func`
+/// drive `Interpreter::new()`'s `initial_env`; `signature`/`doc`/`example`
+/// must stay in sync with `doc/stdlib.md` (checked by
+/// `crates/wilios-core/tests/stdlib_doc_consistency.rs`) and `example` must
+/// actually run (checked by `crates/wilios-core/tests/stdlib_examples.rs`).
+pub struct BuiltinSpec {
+    pub name: &'static str,
+    pub signature: &'static str,
+    pub doc: &'static str,
+    pub example: &'static str,
+    pub func: fn(Vec<Value>) -> Result<Value, RuntimeError>,
+}
+
+pub static BUILTINS: &[BuiltinSpec] = &[
+    BuiltinSpec {
+        name: "print",
+        signature: "print(value, value, ...) -> Int",
+        doc: "Print one or more values to standard output, separated by spaces. Returns 0.",
+        example: "print(42)",
+        func: builtin_print,
+    },
+    BuiltinSpec {
+        name: "rand",
+        signature: "rand(min: Int, max: Int) -> Int",
+        doc: "Return a random integer in the range [min, max] inclusive.",
+        example: "let n = rand(1, 6)",
+        func: builtin_rand,
+    },
+    BuiltinSpec {
+        name: "transpose",
+        signature: "transpose(value: Pitch | Chord, semitones: Int) -> Pitch | Chord",
+        doc: "Transpose a pitch or chord by a given number of semitones. Positive semitones transpose up; negative transpose down.",
+        example: "let fifth = transpose(C4, 7)",
+        func: builtin_transpose,
+    },
+    BuiltinSpec {
+        name: "len",
+        signature: "len(array: Array) -> Int",
+        doc: "Return the number of elements in an array.",
+        example: "let n = len([C4, E4, G4])",
+        func: builtin_len,
+    },
+];
+
 #[derive(Clone)]
 pub struct Interpreter {
     pub tracks: Vec<TrackRunner>,
@@ -247,10 +292,9 @@ impl Interpreter {
         // per-track by the same statements inside `track N { ... }`).
         let mut tmp_ctx = {
             let mut initial_env: HashMap<Ident, Value> = HashMap::new();
-            initial_env.insert(Ident("print".into()), Value::Builtin(builtin_print));
-            initial_env.insert(Ident("rand".into()), Value::Builtin(builtin_rand));
-            initial_env.insert(Ident("transpose".into()), Value::Builtin(builtin_transpose));
-            initial_env.insert(Ident("len".into()), Value::Builtin(builtin_len));
+            for b in BUILTINS {
+                initial_env.insert(Ident(b.name.into()), Value::Builtin(b.func));
+            }
 
             TrackContext {
                 track_id: usize::MAX,
