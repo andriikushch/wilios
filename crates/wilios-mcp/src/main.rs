@@ -1,20 +1,124 @@
 use anyhow::Result;
 use rmcp::{
-    RoleServer, ServerHandler, ServiceExt,
+    ErrorData, RoleServer, ServerHandler, ServiceExt,
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
-        Implementation, InitializeResult, ListResourcesResult, PaginatedRequestParams,
-        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-        ResourceContents, ServerCapabilities,
+        CallToolResult, ContentBlock, Implementation, InitializeResult, ListResourcesResult,
+        PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse,
+        ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
     },
     service::RequestContext,
+    tool, tool_handler, tool_router,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-struct WiliosMcp;
+#[derive(Debug, Serialize, JsonSchema)]
+struct SymbolDoc {
+    name: String,
+    kind: String,
+    signature: Option<String>,
+    category: Option<String>,
+    doc: String,
+    example: String,
+}
 
+impl From<wilios_core::stdlib::Symbol> for SymbolDoc {
+    fn from(s: wilios_core::stdlib::Symbol) -> Self {
+        SymbolDoc {
+            name: s.name.to_string(),
+            kind: s.kind.to_string(),
+            signature: s.signature.map(str::to_string),
+            category: s.category.map(str::to_string),
+            doc: s.doc.to_string(),
+            example: s.example.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct DescribeSymbolRequest {
+    /// Exact name of a wilios stdlib symbol (built-in function or FM preset), e.g. "transpose" or "epiano".
+    name: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SearchStdlibRequest {
+    /// Case-insensitive substring to match against stdlib symbol names and descriptions.
+    query: String,
+}
+
+#[derive(Clone)]
+struct WiliosMcp {
+    tool_router: ToolRouter<Self>,
+}
+
+impl WiliosMcp {
+    fn new() -> Self {
+        Self {
+            tool_router: Self::tool_router(),
+        }
+    }
+}
+
+#[tool_router(router = tool_router)]
+impl WiliosMcp {
+    #[tool(
+        description = "Look up a wilios stdlib symbol (built-in function or FM preset) by exact name. Returns its signature (if a function), description, and a minimal runnable example."
+    )]
+    async fn describe_symbol(
+        &self,
+        Parameters(req): Parameters<DescribeSymbolRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        match wilios_core::stdlib::find(&req.name) {
+            Some(symbol) => Ok(CallToolResult::success(vec![ContentBlock::json(
+                SymbolDoc::from(symbol),
+            )?])),
+            None => {
+                let suggestions: Vec<String> = wilios_core::stdlib::search(&req.name)
+                    .into_iter()
+                    .take(3)
+                    .map(|s| s.name.to_string())
+                    .collect();
+                let mut message = format!("No stdlib symbol named '{}'.", req.name);
+                if suggestions.is_empty() {
+                    message.push_str(" Try search_stdlib to browse available symbols.");
+                } else {
+                    message.push_str(&format!(
+                        " Did you mean: {}? Or try search_stdlib to browse further.",
+                        suggestions.join(", ")
+                    ));
+                }
+                Ok(CallToolResult::error(vec![ContentBlock::text(message)]))
+            }
+        }
+    }
+
+    #[tool(
+        description = "Search wilios stdlib symbols (built-in functions and FM presets) by a case-insensitive substring match against name and description."
+    )]
+    async fn search_stdlib(
+        &self,
+        Parameters(req): Parameters<SearchStdlibRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let matches: Vec<SymbolDoc> = wilios_core::stdlib::search(&req.query)
+            .into_iter()
+            .map(SymbolDoc::from)
+            .collect();
+        Ok(CallToolResult::success(vec![ContentBlock::json(matches)?]))
+    }
+}
+
+#[tool_handler(router = self.tool_router)]
 impl ServerHandler for WiliosMcp {
     fn get_info(&self) -> rmcp::model::ServerInfo {
-        InitializeResult::new(ServerCapabilities::builder().enable_resources().build())
-            .with_server_info(Implementation::new("wilios-mcp", env!("CARGO_PKG_VERSION")))
+        InitializeResult::new(
+            ServerCapabilities::builder()
+                .enable_resources()
+                .enable_tools()
+                .build(),
+        )
+        .with_server_info(Implementation::new("wilios-mcp", env!("CARGO_PKG_VERSION")))
     }
 
     async fn list_resources(
@@ -84,7 +188,7 @@ async fn main() -> Result<()> {
         .init();
 
     let transport = rmcp::transport::io::stdio();
-    let service = WiliosMcp.serve(transport).await?;
+    let service = WiliosMcp::new().serve(transport).await?;
     service.waiting().await?;
     Ok(())
 }

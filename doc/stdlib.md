@@ -41,7 +41,7 @@ These functions are available in **every** wilios program. They do not require a
 
 Print one or more values to standard output, separated by spaces.
 
-**Signature:** `print(value, value, ...)`
+**Signature:** `print(value, value, ...) -> Int`
 **Returns:** `0` (Int)
 
 ```wilios

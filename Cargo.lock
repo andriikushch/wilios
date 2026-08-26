@@ -1625,10 +1625,13 @@ version = "0.0.2"
 dependencies = [
  "anyhow",
  "rmcp",
+ "schemars",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "wilios-core",
 ]
 
 [[package]]
