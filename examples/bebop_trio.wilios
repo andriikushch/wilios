@@ -1,0 +1,136 @@
+// "Contrafactual" — an original bebop head on rhythm changes (I Got Rhythm) in Bb.
+// Trio: brass lead + walking bass + drums (swing ride / kick + snare). AABA, 32 bars, medium swing.
+
+import "../lib/lib.wilios"
+
+// ============================================================
+//  PHRASES
+// ============================================================
+
+// --- LEAD: bars 1-7 of an A section (Bbmaj7 G7 | Cm7 F7 | Dm7 G7 | Cm7 F7 | Fm7 Bb7 | Ebmaj7 Ab7 | Dm7 G7)
+let a7 = func() {
+    <F5> 1/8 <Eb5> 1/8 <D5> 1/8 <Bb4> 1/8   <G4> 1/8 <B4> 1/8 <D5> 1/8 <F5> 1/8
+    <Eb5> 1/8 <D5> 1/8 <C5> 1/8 <Bb4> 1/8   <A4> 1/8 <G4> 1/8 <F4> 1/8 <Eb4> 1/8
+    <F4> 1/8 <A4> 1/8 <D5> 1/8 <F5> 1/8     <E5> 1/8 <D5> 1/8 <B4> 1/8 <G4> 1/8
+    <Eb5> 1/8 <C5> 1/8 <Bb4> 1/8 <G4> 1/8   <A4> 1/4. rest 1/8
+    rest 1/8 <Ab4> 1/8 <Bb4> 1/8 <C5> 1/8   <Db5> 1/8 <C5> 1/8 <B4> 1/8 <Bb4> 1/8
+    <D5> 1/8 <Eb5> 1/8 <F5> 1/8 <G5> 1/8    <Gb5> 1/8 <F5> 1/8 <Eb5> 1/8 <Db5> 1/8
+    <C5> 1/8 <A4> 1/8 <F4> 1/8 <A4> 1/8     <B4> 1/8 <C5> 1/8 <D5> 1/8 <F5> 1/8
+}
+
+// bar 8 endings for the three A sections
+let end_turn = func() {          // A1 turnaround (Cm7 F7), chromatic tag
+    <Eb5> 1/8 <D5> 1/8 <C5> 1/8 <Eb5> 1/8   <D5> 1/8 <Db5> 1/8 <C5> 1/8 rest 1/8
+}
+let end_bridge = func() {        // A2 -> pickup arpeggio into D7
+    <Eb5> 1/8 <C5> 1/8 <A4> 1/8 <F4> 1/8    rest 1/8 <F#4> 1/8 <A4> 1/8 <C5> 1/8
+}
+let end_final = func() {         // A3 bar 32 -> held Bb triad
+    <F5> 1/8 <D5> 1/8 <Bb4> 1/8 <D5> 1/8    <Bb4, D5, F5> 1/2
+}
+
+// LEAD: the 8-bar bridge (D7 x2 | G7 x2 | C7 x2 | F7 x2)
+let bridge = func() {
+    <F#5> 1/8 <E5> 1/8 <D5> 1/8 <C5> 1/8    <A4> 1/8 <F#4> 1/8 <A4> 1/8 <C5> 1/8
+    <D5> 1/8 <C#5> 1/8 <D5> 1/8 <F#5> 1/8   <A5> 1/8 <G5> 1/8 <F#5> 1/8 <E5> 1/8
+    <F5> 1/8 <E5> 1/8 <D5> 1/8 <B4> 1/8     <G4> 1/8 <B4> 1/8 <D5> 1/8 <F5> 1/8
+    <Ab5> 1/8 <G5> 1/8 <F5> 1/8 <E5> 1/8    <D5> 1/8 <C5> 1/8 <B4> 1/8 <D5> 1/8
+    <E5> 1/8 <D5> 1/8 <C5> 1/8 <Bb4> 1/8    <G4> 1/8 <Bb4> 1/8 <C5> 1/8 <E5> 1/8
+    <D5> 1/8 <Eb5> 1/8 <E5> 1/8 <G5> 1/8    <Bb5> 1/8 <A5> 1/8 <G5> 1/8 <E5> 1/8
+    <A4> 1/8 <G4> 1/8 <F4> 1/8 <Eb4> 1/8    <C4> 1/8 <Eb4> 1/8 <F4> 1/8 <A4> 1/8
+    <Bb4> 1/8 <B4> 1/8 <C5> 1/8 <D5> 1/8    <F5> 1/4 rest 1/4
+}
+
+// --- BASS: walking quarter notes, bars 1-7 of an A section
+let a_bass7 = func() {
+    <Bb1> 1/4 <D2> 1/4 <G1> 1/4 <Bb1> 1/4
+    <C2> 1/4 <G1> 1/4 <F1> 1/4 <E1> 1/4
+    <D2> 1/4 <A1> 1/4 <G1> 1/4 <B1> 1/4
+    <C2> 1/4 <Eb2> 1/4 <F1> 1/4 <G1> 1/4
+    <F1> 1/4 <C2> 1/4 <Bb1> 1/4 <D2> 1/4
+    <Eb2> 1/4 <Bb1> 1/4 <Ab1> 1/4 <C2> 1/4
+    <D2> 1/4 <A1> 1/4 <G1> 1/4 <A1> 1/4
+}
+let bass_turn = func() {         // bar 8 (Cm7 F7)
+    <C2> 1/4 <Eb2> 1/4 <F1> 1/4 <A1> 1/4
+}
+let bass_final = func() {        // bar 32
+    <Bb1> 1/1
+}
+let bridge_bass = func() {       // 8 bars: D7 x2 | G7 x2 | C7 x2 | F7 x2
+    <D2> 1/4 <A1> 1/4 <D2> 1/4 <F#1> 1/4
+    <D2> 1/4 <C2> 1/4 <B1> 1/4 <A1> 1/4
+    <G1> 1/4 <D2> 1/4 <G1> 1/4 <B1> 1/4
+    <G1> 1/4 <F1> 1/4 <E1> 1/4 <D1> 1/4
+    <C2> 1/4 <G1> 1/4 <C2> 1/4 <E1> 1/4
+    <C2> 1/4 <Bb1> 1/4 <A1> 1/4 <G1> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <A1> 1/4
+    <F1> 1/4 <Eb1> 1/4 <D1> 1/4 <C2> 1/4
+}
+
+// --- RIDE: one bar of swing "spang-a-lang" (eighth pairs swing via `swing`)
+let ride1 = func() {
+    <F5> 1/4  <F5> 1/8 <F5> 1/8  <F5> 1/4  <F5> 1/8 <F5> 1/8
+}
+
+// ============================================================
+//  TRACKS  (all tempo 150 / swing 63 so beats line up)
+// ============================================================
+
+// ---- LEAD ----
+track 1
+tempo 150
+swing 63
+volume 92
+brass()
+a7()
+end_turn()
+a7()
+end_bridge()
+bridge()
+a7()
+end_final()
+
+// ---- WALKING BASS ----
+track 2
+tempo 150
+swing 63
+volume 100
+bass()
+a_bass7()
+bass_turn()
+a_bass7()
+bass_turn()
+bridge_bass()
+a_bass7()
+bass_final()
+
+// ---- RIDE CYMBAL ----
+track 3
+tempo 150
+swing 63
+volume 55
+pan 35
+hihat_c()
+let r = 0
+loop (r < 32) {
+    r = r + 1
+    ride1()
+}
+
+// ---- KICK + SNARE ----
+track 4
+tempo 150
+swing 63
+volume 48
+pan -25
+let k = 0
+loop (k < 31) {
+    k = k + 1
+    kick()  <B1> 1/4
+    snare() <A3> 1/4
+    kick()  <B1> 1/4
+    snare() <A3> 1/4
+}
+// bar 32: snare fill into a final kick
+snare() <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8  kick() <B1> 1/4

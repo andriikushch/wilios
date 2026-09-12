@@ -2,7 +2,7 @@
 
 The standard library is a single importable file located at `lib/lib.wilios`. It provides:
 
-- **9 FM synthesis instrument presets** — ready-made `fm { }` blocks for common instrument categories
+- **14 FM synthesis instrument presets** — ready-made `fm { }` blocks for common instrument categories
 - **4 built-in functions** — native functions available in every program without importing anything
 
 ---
@@ -20,13 +20,18 @@ The standard library is a single importable file located at `lib/lib.wilios`. It
    - [epiano](#41-epiano)
    - [brass](#42-brass)
    - [bass](#43-bass)
+   - [upright](#46-upright)
    - [marimba](#44-marimba)
    - [strings](#45-strings)
+   - [comp\_piano](#47-comp_piano)
+   - [trumpet](#48-trumpet)
 5. [Drum Presets](#5-drum-presets)
    - [kick](#51-kick)
    - [snare](#52-snare)
    - [hihat\_c](#53-hihat_c)
    - [hihat\_o](#54-hihat_o)
+   - [ride](#55-ride)
+   - [brushes](#56-brushes)
 6. [Building Custom Presets](#6-building-custom-presets)
 
 ---
@@ -106,6 +111,15 @@ Transpose a pitch or chord by a given number of semitones.
 
 Positive semitones transpose up; negative semitones transpose down.
 
+**Spelling.** A black-key result is spelled to match the input: a flat input
+spells it as a flat (`transpose(Eb4, 2)` → `F4`, `transpose(Ab3, -1)` → `G3`,
+`transpose(Bb3, 1)` → `B3`… and a black key stays flat: `transpose(Eb4, 0)` →
+`Eb4`), while a natural or sharp input spells it as a sharp (`transpose(C4, 1)`
+→ `C#4`). Chords keep each note's own flavour.
+
+**Range.** `C0` is the lowest representable pitch. Transposing below it is a
+runtime error, not a silent clamp.
+
 ```wilios
 let root  = C4
 let fifth = transpose(C4, 7)     // G4
@@ -114,6 +128,8 @@ let down  = transpose(A4, -12)   // A3
 
 let maj = <C4, E4, G4>
 let t   = transpose(maj, 5)      // <F4, A4, C5>
+
+let bebop = transpose(Eb4, 3)    // Gb4  (flat in → flat out)
 ```
 
 **Example — ascending scale:**
@@ -167,7 +183,7 @@ loop (i < len(scale)) {
 
 ## 2. Importing the Standard Library
 
-Add this line at the top of your `.wilios` file to import all 9 preset functions:
+Add this line at the top of your `.wilios` file to import all 14 preset functions:
 
 ```wilios
 import "lib/lib.wilios"
@@ -179,7 +195,7 @@ Adjust the path to be relative to your source file's location. For example, from
 import "../lib/lib.wilios"
 ```
 
-After importing, all preset functions (`epiano`, `brass`, `bass`, `marimba`, `strings`, `kick`, `snare`, `hihat_c`, `hihat_o`) are available in global scope and can be called from any track.
+After importing, all preset functions (`epiano`, `brass`, `trumpet`, `bass`, `upright`, `marimba`, `strings`, `comp_piano`, `kick`, `snare`, `hihat_c`, `hihat_o`, `ride`, `brushes`) are available in global scope and can be called from any track.
 
 ---
 
@@ -189,17 +205,27 @@ After importing, all preset functions (`epiano`, `brass`, `bass`, `marimba`, `st
 |----------|----------|-----------|-----------|-------------------|
 | `epiano()` | Tonal | Two independent pairs | 4 | Any |
 | `brass()` | Tonal | Single pair | 2 | Any |
+| `trumpet()` | Tonal | Single pair | 2 | Mid–High (A3–A5) |
 | `bass()` | Tonal | Single pair | 2 | Low (A1–A2) |
+| `upright()` | Tonal | Single pair | 2 | Low (E1–G2) |
 | `marimba()` | Tonal | Two modulators → carrier | 3 | Mid–High |
 | `strings()` | Tonal | Two independent pairs | 4 | Any |
+| `comp_piano()` | Tonal | Two independent pairs | 4 | Mid (C3–C5) |
 | `kick()` | Drum | Single pair | 2 | `<B1>` |
 | `snare()` | Drum | Two modulators → carrier | 3 | `<A3>` |
 | `hihat_c()` | Drum | Two modulators → carrier | 3 | `<F5>` |
 | `hihat_o()` | Drum | Two modulators → carrier | 3 | `<F5>` |
+| `ride()` | Drum | Two modulators → carrier | 3 | `<F5>` |
+| `brushes()` | Drum | Two modulators → carrier | 3 | `<A3>` |
 
 Each preset:
 1. Sets the track's `wave` to `sine` (or `square` for snare)
 2. Configures an `fm { }` block with operator routing and ADSR
+3. May set a low-pass filter (`cutoff` / `resonance`) or `vibrato` to shape the tone
+
+The presets are voiced for the current engine (exponential ADSR, band-limited
+`saw`/`square`, and the `cutoff` / `resonance` / `vibrato` statements — see
+[synthesis.md](synthesis.md)).
 
 The preset only affects the track in which it is called. Call it once per track before playing notes.
 
@@ -222,12 +248,14 @@ Op 4 (14×, fast decay) ──> Op 3 (1×, slow decay) ──> /
 ```wilios
 let epiano = func() {
     wave sine
+    cutoff 9000
+    resonance 0.1
     fm {
         algorithm [2->1, 4->3]
-        op 1 { ratio 1.0   level 0.5  attack 10  decay 1800  sustain 0   release 400 }
-        op 2 { ratio 14.0  level 0.7  attack 0   decay 600   sustain 0   release 150 }
-        op 3 { ratio 1.0   level 0.25 attack 10  decay 2500  sustain 0   release 500 }
-        op 4 { ratio 14.0  level 0.4  attack 0   decay 400   sustain 0   release 100 }
+        op 1 { ratio 1.0   level 0.5  attack 8   decay 1300  sustain 0   release 320 }
+        op 2 { ratio 14.0  level 0.7  attack 0   decay 420   sustain 0   release 120 }
+        op 3 { ratio 1.0   level 0.25 attack 8   decay 1800  sustain 0   release 380 }
+        op 4 { ratio 14.0  level 0.4  attack 0   decay 300   sustain 0   release 90  }
     }
 }
 ```
@@ -261,10 +289,11 @@ Op 2 (1×, high level, fast decay) ──> Op 1 (1×, full sustain) ──> outp
 ```wilios
 let brass = func() {
     wave sine
+    cutoff 4500
     fm {
         algorithm [2->1]
-        op 1 { ratio 1.0  level 1.0  attack 25  decay 0    sustain 100  release 200 }
-        op 2 { ratio 1.0  level 2.5  attack 10  decay 250  sustain 25   release 100 }
+        op 1 { ratio 1.0  level 1.0  attack 18  decay 0    sustain 100  release 180 }
+        op 2 { ratio 1.0  level 2.5  attack 8   decay 220  sustain 25   release 90  }
     }
 }
 ```
@@ -299,10 +328,11 @@ Op 2 (0.5×, high level, fast decay) ──> Op 1 (1×, medium sustain) ──> 
 ```wilios
 let bass = func() {
     wave sine
+    cutoff 3000
     fm {
         algorithm [2->1]
-        op 1 { ratio 1.0  level 1.0  attack 5   decay 600  sustain 50  release 250 }
-        op 2 { ratio 0.5  level 2.0  attack 0   decay 300  sustain 0   release 80  }
+        op 1 { ratio 1.0  level 1.0  attack 4   decay 450  sustain 50  release 200 }
+        op 2 { ratio 0.5  level 2.0  attack 0   decay 220  sustain 0   release 70  }
     }
 }
 ```
@@ -337,11 +367,12 @@ Op 3 (5.0×) ──/
 ```wilios
 let marimba = func() {
     wave sine
+    cutoff 8000
     fm {
         algorithm [2->1, 3->1]
-        op 1 { ratio 1.0  level 1.0  attack 5   decay 700  sustain 0  release 300 }
-        op 2 { ratio 3.5  level 1.8  attack 0   decay 350  sustain 0  release 100 }
-        op 3 { ratio 5.0  level 0.6  attack 0   decay 200  sustain 0  release 80  }
+        op 1 { ratio 1.0  level 1.0  attack 4   decay 520  sustain 0  release 260 }
+        op 2 { ratio 3.5  level 1.8  attack 0   decay 260  sustain 0  release 90  }
+        op 3 { ratio 5.0  level 0.6  attack 0   decay 150  sustain 0  release 70  }
     }
 }
 ```
@@ -379,11 +410,13 @@ Op 4 (3×, slow attack) ──> Op 3 (2×, slow attack) ──> /
 ```wilios
 let strings = func() {
     wave sine
+    cutoff 4500
+    vibrato 7 5
     fm {
         algorithm [2->1, 4->3]
-        op 1 { ratio 1.0  level 0.5  attack 500  decay 0  sustain 100  release 800  }
+        op 1 { ratio 1.0  level 0.5  attack 450  decay 0  sustain 100  release 800  }
         op 2 { ratio 1.0  level 0.3  attack 300  decay 0  sustain 80   release 600  }
-        op 3 { ratio 2.0  level 0.25 attack 600  decay 0  sustain 90   release 1000 }
+        op 3 { ratio 2.0  level 0.25 attack 550  decay 0  sustain 90   release 1000 }
         op 4 { ratio 3.0  level 0.2  attack 400  decay 0  sustain 70   release 700  }
     }
 }
@@ -403,6 +436,130 @@ strings()
 ```
 
 > **Tip:** Because of the long attack (500–600ms), strings work best with sustained notes (`1/2`, `1/1`, `4/4`). Short notes will not reach full amplitude before decaying.
+
+---
+
+### 4.6 `upright()`
+
+**Fingered acoustic bass.** A same-ratio modulator (1.0×) at modest depth (1.2) gives a soft, woody thump that settles onto a warm fundamental with a short sustain. Rounder and less punchy than `bass()` — no sub-octave modulator, so there is no downward pitch sweep on the attack.
+
+**Algorithm:**
+```
+Op 2 (1×, modest level, fast decay) ──> Op 1 (1×, short sustain) ──> output
+```
+
+**Recommended pitch:** `<E1>`–`<G2>`
+
+**Source:**
+```wilios
+let upright = func() {
+    wave sine
+    cutoff 2400
+    fm {
+        algorithm [2->1]
+        op 1 { ratio 1.0  level 1.0  attack 6  decay 380  sustain 35  release 150 }
+        op 2 { ratio 1.0  level 1.2  attack 0  decay 150  sustain 0   release 50  }
+    }
+}
+```
+
+**Usage:**
+```wilios
+import "../lib/lib.wilios"
+
+track 1
+tempo 130
+upright()
+
+<F1> 1/4
+<A1> 1/4
+<C2> 1/4
+<E1> 1/4
+```
+
+---
+
+### 4.7 `comp_piano()`
+
+**Sustaining comping keyboard.** Two carrier layers (op 1 and op 3) each hold a real sustain, so voiced chords ring under a melody instead of decaying away like `epiano()`. Mild inharmonic modulators (3.0×, 7.0×) add a little tine colour without the bell "ting".
+
+**Algorithm:**
+```
+Op 2 (3×, low level) ──> Op 1 (1×, medium sustain) ──> \
+                                                         ──> output
+Op 4 (7×, low level) ──> Op 3 (1×, medium sustain) ──> /
+```
+
+**Recommended pitch:** `<C3>`–`<C5>` (comping register)
+
+**Source:**
+```wilios
+let comp_piano = func() {
+    wave sine
+    cutoff 7000
+    resonance 0.08
+    fm {
+        algorithm [2->1, 4->3]
+        op 1 { ratio 1.0  level 0.6  attack 5  decay 340  sustain 55  release 460 }
+        op 2 { ratio 3.0  level 0.5  attack 3  decay 240  sustain 25  release 220 }
+        op 3 { ratio 1.0  level 0.35 attack 6  decay 480  sustain 45  release 620 }
+        op 4 { ratio 7.0  level 0.3  attack 2  decay 160  sustain 10  release 130 }
+    }
+}
+```
+
+**Usage:**
+```wilios
+track 1
+tempo 120
+comp_piano()
+
+<C3, E3, G3, B3> 1/2
+<D3, F3, A3, C4> 1/2
+<G2, F3, B3, E4> 1/1
+```
+
+---
+
+### 4.8 `trumpet()`
+
+**Sustained FM brass with vibrato.** A same-ratio modulator (1.0×) held through
+the sustain gives the buzzy brass body; a `cutoff` low-pass tames the FM fizz
+and a gentle `vibrato` adds air on held notes. The onset is slower and more
+"tongued" than `brass()`, which is a short stab. Play in the mid–high register
+(`<A3>`–`<A5>`).
+
+**Algorithm:**
+```
+Op 2 (1×, held into the sustain) ──> Op 1 (1×, sustaining) ──> low-pass ──> output
+```
+
+**Source:**
+```wilios
+let trumpet = func() {
+    wave sine
+    cutoff 3400
+    resonance 0.1
+    vibrato 22 5.5
+    fm {
+        algorithm [2->1]
+        op 1 { ratio 1.0  level 0.85  attack 42  decay 110  sustain 82  release 130 }
+        op 2 { ratio 1.0  level 1.7   attack 34  decay 200  sustain 48  release 110 }
+    }
+}
+```
+
+**Usage:**
+```wilios
+track 1
+tempo 120
+trumpet()
+
+<A3> 1/4
+<C4> 1/4
+<E4> 1/2
+<D4> 1/1
+```
 
 ---
 
@@ -427,8 +584,8 @@ let kick = func() {
     wave sine
     fm {
         algorithm [2->1]
-        op 1 { ratio 1.0   level 1.0  attack 5  decay 350  sustain 0  release 50 }
-        op 2 { ratio 0.25  level 9.0  attack 0  decay 60   sustain 0  release 20 }
+        op 1 { ratio 1.0   level 1.0  attack 4  decay 260  sustain 0  release 45 }
+        op 2 { ratio 0.25  level 9.0  attack 0  decay 45   sustain 0  release 18 }
     }
 }
 ```
@@ -468,11 +625,12 @@ Op 3 (17×, high level, fast decay)     ──/
 ```wilios
 let snare = func() {
     wave square
+    cutoff 12000
     fm {
         algorithm [2->1, 3->1]
-        op 1 { ratio 1.0   level 1.0  attack 0  decay 180  sustain 0  release 40 }
-        op 2 { ratio 11.0  level 4.0  attack 0  decay 90   sustain 0  release 25 }
-        op 3 { ratio 17.0  level 2.5  attack 0  decay 70   sustain 0  release 20 }
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 140  sustain 0  release 35 }
+        op 2 { ratio 11.0  level 4.5  attack 0  decay 70   sustain 0  release 22 }
+        op 3 { ratio 17.0  level 2.8  attack 0  decay 55   sustain 0  release 18 }
     }
 }
 ```
@@ -493,7 +651,7 @@ rest 1/4    // beat 3
 
 ### 5.3 `hihat_c()`
 
-**Closed hi-hat.** Two very high-ratio inharmonic modulators (13× and 17.5×) produce a short, metallic click with a bright transient. The very short decays (30–55ms) make it sound crisp and tight — a closed hi-hat cuts off almost immediately.
+**Closed hi-hat.** Two very high-ratio inharmonic modulators (13× and 17.5×) produce a short, metallic click with a bright transient. The very short decays (~20–45ms) make it sound crisp and tight — a closed hi-hat cuts off almost immediately.
 
 **Algorithm:**
 ```
@@ -510,9 +668,9 @@ let hihat_c = func() {
     wave sine
     fm {
         algorithm [2->1, 3->1]
-        op 1 { ratio 1.0   level 1.0  attack 0  decay 55   sustain 0  release 15 }
-        op 2 { ratio 13.0  level 5.0  attack 0  decay 30   sustain 0  release 10 }
-        op 3 { ratio 17.5  level 4.0  attack 0  decay 25   sustain 0  release 10 }
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 45   sustain 0  release 12 }
+        op 2 { ratio 13.0  level 5.0  attack 0  decay 24   sustain 0  release 8  }
+        op 3 { ratio 17.5  level 4.0  attack 0  decay 20   sustain 0  release 8  }
     }
 }
 ```
@@ -553,9 +711,9 @@ let hihat_o = func() {
     wave sine
     fm {
         algorithm [2->1, 3->1]
-        op 1 { ratio 1.0   level 1.0  attack 0  decay 400  sustain 0  release 200 }
-        op 2 { ratio 13.0  level 5.0  attack 0  decay 180  sustain 0  release 80  }
-        op 3 { ratio 17.5  level 4.0  attack 0  decay 150  sustain 0  release 60  }
+        op 1 { ratio 1.0   level 1.0  attack 0  decay 300  sustain 0  release 150 }
+        op 2 { ratio 13.0  level 5.0  attack 0  decay 140  sustain 0  release 65  }
+        op 3 { ratio 17.5  level 4.0  attack 0  decay 115  sustain 0  release 50  }
     }
 }
 ```
@@ -575,6 +733,85 @@ hihat_o()
 ```
 
 > **Note:** Calling `hihat_o()` replaces the FM block on the track. If you want to alternate between closed and open hi-hat on the same track, call the preset function immediately before the note that should use it, as shown above.
+
+---
+
+### 5.5 `ride()`
+
+**Ride cymbal.** Lower, more musical inharmonic partials (4.1× and 6.7×) than the hi-hats, with long-ish decay (~0.9–1.1 s) and release (~0.5–0.7 s) and trimmed levels, so a steady ride pattern shimmers rather than piling up into a wash the way the pre-revoice values did. Use it for a swing ride pattern; keep the track `volume` well below the lead.
+
+**Algorithm:**
+```
+Op 2 (4.1×, high level, long decay) ──\
+                                       ──> Op 1 (1×, long decay) ──> output
+Op 3 (6.7×, high level, long decay) ──/
+```
+
+**Recommended pitch:** `<F5>` (or other high-register notes)
+
+**Source:**
+```wilios
+let ride = func() {
+    wave sine
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0  level 1.0  attack 0  decay 1100  sustain 0  release 700 }
+        op 2 { ratio 4.1  level 2.4  attack 0  decay 850   sustain 0  release 520 }
+        op 3 { ratio 6.7  level 1.8  attack 0  decay 950   sustain 0  release 600 }
+    }
+}
+```
+
+**Usage:**
+```wilios
+track 3
+tempo 132
+swing 66
+volume 45
+ride()
+
+// swing "spang-a-lang", one bar
+<F5> 1/4  <F5> 1/8 <F5> 1/8  <F5> 1/4  <F5> 1/8 <F5> 1/8
+```
+
+---
+
+### 5.6 `brushes()`
+
+**Snare brush swish.** A soft attack (20–30 ms) and mid-band inharmonic modulators (7.5× and 12.3×) give a breathy, sustained swish rather than `snare()`'s hard crack. Sits well as a backbeat or a steady stir under a ballad.
+
+**Algorithm:**
+```
+Op 2 (7.5×, soft attack) ──\
+                            ──> Op 1 (1×, soft attack) ──> output
+Op 3 (12.3×, soft attack) ──/
+```
+
+**Recommended pitch:** `<A3>`–`<D4>`
+
+**Source:**
+```wilios
+let brushes = func() {
+    wave sine
+    cutoff 9000
+    fm {
+        algorithm [2->1, 3->1]
+        op 1 { ratio 1.0   level 1.0  attack 24  decay 250  sustain 0  release 100 }
+        op 2 { ratio 7.5   level 3.5  attack 16  decay 200  sustain 0  release 75  }
+        op 3 { ratio 12.3  level 2.5  attack 16  decay 160  sustain 0  release 65  }
+    }
+}
+```
+
+**Usage:**
+```wilios
+track 3
+tempo 120
+volume 55
+brushes()
+
+<A3> 1/4 rest 1/4 <A3> 1/4 rest 1/4
+```
 
 ---
 

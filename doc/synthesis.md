@@ -24,6 +24,9 @@ This document covers the sound synthesis system: waveforms, ADSR envelopes, perf
    - [Defaults and Inheritance](#65-defaults-and-inheritance)
 7. [Synthesis Pipeline](#7-synthesis-pipeline)
 8. [FM Synthesis Concepts](#8-fm-synthesis-concepts)
+9. [Tone Filter and Vibrato](#9-tone-filter-and-vibrato)
+   - [Low-Pass Filter (`cutoff`, `resonance`)](#91-low-pass-filter-cutoff-resonance)
+   - [Vibrato (`vibrato`)](#92-vibrato-vibrato)
 
 ---
 
@@ -46,6 +49,9 @@ All synthesis parameters are **per-track**. When a track starts it inherits thes
 | `fm_depth` | `0.0` | modulation index; 0 = FM disabled |
 | `fm_block` | none | multi-op FM block (overrides legacy FM) |
 | `swing` | `50` | swing feel: 50 = straight, 100 = maximum swing |
+| `cutoff` | `20000` | resonant low-pass cutoff in Hz; ≥ 18000 = open (no filter) |
+| `resonance` | `0.0` | low-pass resonance, `0.0` (gentle) – `1.0` (near self-oscillation) |
+| `vibrato` | `0 0` | pitch LFO: `depth` in cents, `rate` in Hz; depth `0` = off |
 
 ---
 
@@ -581,15 +587,51 @@ For each sample:
        env_i       = evaluate ADSR envelope for operator i
        output_i    = waveform_i(phase_i) × level_i × env_i
   3. Sum outputs of all carrier operators (operators with no outgoing edges)
-  4. Apply track volume and pan
+  4. Apply vibrato (already folded into the phase increments), the low-pass
+     filter, then track volume
   5. Mix into audio buffer
 ```
 
 Self-feedback uses the previous sample's output of that operator, stored in a per-voice state variable.
 
-### Soft-Clip Limiter
+### Per-voice post-processing
 
-The final mixed output passes through a `tanh`-based soft-clip limiter to prevent hard clipping when multiple tracks are mixed.
+After the carrier sum (both paths), each voice applies, in order:
+
+1. **Vibrato** — a sine LFO scales every oscillator's phase increment for the
+   sample, so FM ratios are preserved. Skipped entirely when `vibrato` depth is
+   `0` (bit-identical to no vibrato). See [§9.2](#92-vibrato-vibrato).
+2. **Low-pass filter** — a resonant state-variable filter, from `cutoff` /
+   `resonance`. Not built at all when `cutoff` is open (≥ 18 kHz). See
+   [§9.1](#91-low-pass-filter-cutoff-resonance).
+3. **`volume`** scaling.
+
+`pan` is carried on the event (and into MIDI export) but the real-time /
+offline mixer is mono, so it does not affect the rendered audio yet.
+
+### Oscillators and envelopes
+
+- `saw` and `square` are **band-limited** (PolyBLEP): the raw discontinuity is
+  smoothed over one sample so it does not alias into audible junk at high
+  pitches. `sine` and `tri` are unchanged. In the FM paths the carrier phase is
+  not a uniform ramp, so the band-limiting is approximate there — still a clear
+  improvement for a `saw`/`square` carrier, and every stock preset except
+  `snare` uses a `sine` carrier.
+- ADSR stages are **exponential** one-pole curves, and every stage time is
+  floored to ~2 ms, so `attack 0` / `decay 0` / `release 0` are fast click-free
+  fades rather than one-sample jumps. Release always completes within
+  `release` ms from whatever level the note was released at.
+
+### Master bus
+
+The summed mix passes through:
+
+1. A **smoothed peak limiter** — the applied gain reduction is slewed (a few ms
+   attack, ~120 ms release) rather than stepped, so a loud transient no longer
+   ducks and "pumps" the whole mix.
+2. A `tanh` **soft-clip** as a safety stage (knee at 0.7).
+3. A one-pole ~10 Hz **DC blocker**, removing the standing offset that
+   asymmetric FM and the soft-clip leave behind.
 
 ---
 
@@ -628,3 +670,59 @@ Frequency Modulation (FM) synthesis generates sound by modulating the **frequenc
 - **3-op chain:** Use for more complex spectra where the modulator itself is modulated (adds sidebands of sidebands).
 - **2 pairs (algo 5 style):** Use for layered timbres — the two carriers are summed, each with its own character. Good for electric piano (two bell pairs), strings (fundamental + octave).
 - **Multiple modulators on one carrier:** Use when multiple independent tonal components should shape the same fundamental.
+
+---
+
+## 9. Tone Filter and Vibrato
+
+Two per-track statements shape the sound after FM synthesis. Both are
+literal-numeric only (like `fm_ratio` / `fm_depth`), settable in `global` scope
+as a default for every track or overridden per track, and negative values are a
+runtime error.
+
+### 9.1 Low-Pass Filter (`cutoff`, `resonance`)
+
+```
+cutoff    numeric      // resonant low-pass cutoff, Hz  (default 20000 = open)
+resonance numeric      // 0.0 (gentle) .. 1.0 (near self-oscillation), default 0.0
+```
+
+A resonant state-variable low-pass filter on the voice output. Use it to tame
+the brightness / "fizz" of a deep FM patch, to darken a pad, or — with a little
+`resonance` — to add a formant-like peak.
+
+- `cutoff` at or above **18 kHz** (including the `20000` default) means *open*:
+  no filter is built and the voice costs nothing extra.
+- `cutoff` is clamped to `[20 Hz, 0.45 × sample_rate]` when the filter runs; a
+  `dump` still reports the value you wrote.
+- `resonance` maps to filter Q from ~0.5 up to ~10.
+- The filter is applied per voice (per note), after the envelope and vibrato and
+  before `volume`.
+
+```wilios
+wave saw
+cutoff 1800
+resonance 0.25
+<C3> 1/2          // bright saw, rounded off with a slight resonant bump
+```
+
+### 9.2 Vibrato (`vibrato`)
+
+```
+vibrato depth_cents rate_hz     // both default 0 (off)
+```
+
+A sine LFO that modulates pitch. `depth` is in cents (100 cents = one
+semitone); musical instrument vibrato is roughly 10–50 cents. `rate` is in Hz
+(4–7 Hz is typical). The LFO scales every operator's frequency together, so FM
+ratios are preserved.
+
+- `depth 0` disables vibrato completely (the output is bit-identical to no
+  `vibrato` statement).
+- There is no onset delay in this version — the vibrato is at full depth from
+  the note's start.
+
+```wilios
+vibrato 22 5.5
+<A4> 1/1          // a held note with a gentle ~5.5 Hz vibrato
+```

@@ -1,0 +1,78 @@
+// ============================================================
+//  licks.wilios — melodic bebop idioms (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/licks.wilios"
+//
+//  Every helper is CALLED IN STATEMENT POSITION (on its own line) and
+//  emits notes onto the current track. They take a *root pitch* and place
+//  themselves with `transpose`, so one lick plays in any key:
+//
+//      arp7(C4)                 // C E G Bb  as four 8ths
+//      ii_v_i_maj(Bb4)          // a 2-bar ii-V-I bebop line in Bb
+//
+//  `key` / `root` is the tonic (or chord root) pitch. Nothing is returned;
+//  a `let` bound inside a body is discarded when the call returns.
+// ============================================================
+
+// --- enclose(t): chromatic upper + lower neighbour into target `t`, as an
+//     8th-note triplet (three 1/12 notes = one beat). The classic bebop
+//     triplet pickup into a target note.
+//     (Written as 1/12 triplets, not 1/16s: under `swing`, notes shorter
+//     than an 8th that aren't tuplets drift the bar's exact position.)
+let enclose = func(t) {
+    <transpose(t, 1)> 1/12
+    <transpose(t, -1)> 1/12
+    <t> 1/12
+}
+
+// --- approach_below(t) / approach_above(t): a single chromatic approach
+//     note then the target, two 8th notes (= one beat). (A bare variable
+//     is not a valid duration in wilios, so these are fixed at 8ths;
+//     write the rhythm out by hand when you need something else.)
+let approach_below = func(t) {
+    <transpose(t, -1)> 1/8
+    <t> 1/8
+}
+let approach_above = func(t) {
+    <transpose(t, 1)> 1/8
+    <t> 1/8
+}
+
+// --- arp7 / arp_maj7 / arp_min7 (root): arpeggio through the 7th,
+//     ascending, four 8th notes (= two beats).
+//       arp7      root  3   5   b7    (dominant 7)
+//       arp_maj7  root  3   5   7     (major 7)
+//       arp_min7  root  b3  5   b7    (minor 7)
+let arp7 = func(root) {
+    <root> 1/8  <transpose(root, 4)> 1/8  <transpose(root, 7)> 1/8  <transpose(root, 10)> 1/8
+}
+let arp_maj7 = func(root) {
+    <root> 1/8  <transpose(root, 4)> 1/8  <transpose(root, 7)> 1/8  <transpose(root, 11)> 1/8
+}
+let arp_min7 = func(root) {
+    <root> 1/8  <transpose(root, 3)> 1/8  <transpose(root, 7)> 1/8  <transpose(root, 10)> 1/8
+}
+
+// --- ii_v_i_maj(key): a 2-bar bebop line over  | iim7  V7 |  Imaj7 |
+//     Built from the sub-phrases above — arp up the ii chord, enclose the
+//     3rd of V7, step down, resolve to the 3rd of I. `key` = the I root.
+let ii_v_i_maj = func(key) {
+    // bar 1 : iim7 (root = key + 2) for 2 beats, then V7 for 2 beats
+    arp_min7(transpose(key, 2))
+    enclose(transpose(key, 11))                      // into the 3rd of V7
+    <transpose(key, 9)> 1/8  <transpose(key, 7)> 1/8 // 9 -> 5 of V7
+    // bar 2 : Imaj7 — land on the 3rd, fall to the root, breathe
+    <transpose(key, 4)> 1/8  <transpose(key, 2)> 1/8  <key> 1/4
+    rest 1/2
+}
+
+// --- turnaround_maj(key): a 2-bar line over  | I  VI7 | ii  V7 |
+//     one chord every 2 beats. Classic bebop turnaround vocabulary.
+let turnaround_maj = func(key) {
+    arp_maj7(key)                                    // I
+    enclose(transpose(key, 13))                      // into the 3rd of VI7
+    <transpose(key, 9)> 1/8  <transpose(key, 7)> 1/8
+    arp_min7(transpose(key, 2))                      // ii
+    enclose(transpose(key, 11))                      // into the 3rd of V7
+    <transpose(key, 5)> 1/8  <transpose(key, 4)> 1/8
+}

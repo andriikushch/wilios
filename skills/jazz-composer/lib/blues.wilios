@@ -1,0 +1,53 @@
+// ============================================================
+//  blues.wilios — jazz-blues style pack (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/blues.wilios"
+//
+//  STYLE NOTES  (copy the settings into every track)
+//    Tempo   60-180        swing   63-72 (shuffle end)     meter  4/4 (12/8 feel)
+//    Presets lead brass ; comp epiano ; bass ; kick/snare/hihat_c
+//    Form    12-bar:  | I7 | IV7 | I7 | I7 | IV7 | IV7 | I7 | VI7 | ii7 | V7 | I7 VI7 | ii7 V7 |
+//    Devices blue notes (b3, b5), riff-and-answer head, tritone-sub bII7
+//            in the turnaround, walking or two-feel bass
+//
+//  Full model: examples/blues_f.wilios . Demo: examples/blues_from_lib.wilios
+// ============================================================
+
+import "licks.wilios"
+import "grooves.wilios"
+
+// --- blues_walk12(key): a full 12-bar walking-bass chorus. `key` = the
+//     I7 root pitch in the bass register (e.g. <F1>). Each bar is a
+//     walk_bar whose four notes outline that bar's chord and approach the
+//     next root.
+let blues_walk12 = func(key) {
+    walk_bar(key, transpose(key, 4), transpose(key, 7), transpose(key, 4))                    // I7
+    walk_bar(transpose(key, 5), transpose(key, 9), transpose(key, 7), transpose(key, 6))      // IV7
+    walk_bar(key, transpose(key, 4), transpose(key, 7), transpose(key, 11))                   // I7 -> I7
+    walk_bar(key, transpose(key, 7), transpose(key, 4), transpose(key, 5))                    // I7 -> IV7
+    walk_bar(transpose(key, 5), transpose(key, 9), transpose(key, 12), transpose(key, 8))     // IV7
+    walk_bar(transpose(key, 5), transpose(key, 6), transpose(key, 7), transpose(key, 9))      // IV7(#IVdim)
+    walk_bar(key, transpose(key, 4), transpose(key, 7), transpose(key, 8))                    // I7 -> VI7
+    walk_bar(transpose(key, 9), transpose(key, 6), transpose(key, 4), transpose(key, 3))      // VI7 -> ii7
+    walk_bar(transpose(key, 2), transpose(key, 5), transpose(key, 9), transpose(key, 8))      // ii7
+    walk_bar(transpose(key, 7), transpose(key, 11), transpose(key, 2), transpose(key, 1))     // V7
+    walk_bar(key, transpose(key, 4), transpose(key, 9), transpose(key, 8))                    // I7  VI7
+    walk_bar(transpose(key, 2), transpose(key, 5), transpose(key, 7), transpose(key, 11))     // ii7  V7 (turnaround)
+}
+
+// --- blues_riff4(key): a 4-bar riff-and-answer phrase over one chord,
+//     leaning on b3 / b5 / b7. `key` = the lead-register root (e.g. <F4>).
+let blues_riff4 = func(key) {
+    <key> 1/8 <transpose(key, 3)> 1/8 <transpose(key, 4)> 1/8 <transpose(key, 7)> 1/8   <transpose(key, 6)> 1/4 rest 1/4
+    rest 1/2   <transpose(key, 10)> 1/8 <transpose(key, 7)> 1/8 <transpose(key, 3)> 1/8 <key> 1/8
+    <key> 1/4 <transpose(key, 3)> 1/8 <transpose(key, 4)> 1/8   <transpose(key, 7)> 1/4 rest 1/4
+    rest 1/1
+}
+
+// --- blues_riff_head(key): the 12-bar head — the riff, up a fourth over
+//     IV7, then back home.
+let blues_riff_head = func(key) {
+    blues_riff4(key)
+    blues_riff4(transpose(key, 5))
+    blues_riff4(key)
+}

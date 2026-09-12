@@ -1,0 +1,48 @@
+// ============================================================
+//  "Static Shelf" — 8 bars of modal jazz on a D-dorian centre,
+//  assembled from the jazz-composer idiom library.   DEMO
+//
+//  Style : modal jazz   Tempo : 132     Feel : swing 58
+//  Meter : 4/4          Form  : 8-bar vamp (one centre, D dorian)
+//  Band  : strings lead + quartal epiano comp + pedal bass + ride
+//
+//  Run it:
+//    cargo run -- dump   examples/modal_from_lib.wilios --format roll
+//    cargo run -- render examples/modal_from_lib.wilios -o /tmp/m.wav
+//
+//  Harmony is static — motion comes from register, rhythm, orchestration.
+// ============================================================
+
+import "../skills/jazz-composer/lib/modal.wilios"
+
+// ---- LEAD: a sparse 4-bar phrase with wide leaps, stated twice.
+track 1
+tempo 132
+swing 58
+volume 80
+strings()
+dorian_frag(D4)
+dorian_frag(D4)
+
+// ---- COMP: the "So What" quartal answer figure.
+track 2
+tempo 132
+swing 58
+volume 58
+epiano()
+so_what_vamp(8)
+
+// ---- BASS: a D pedal, root/5th oscillation.
+track 3
+tempo 132
+swing 58
+volume 96
+bass()
+modal_pedal(D2, 8)
+
+// ---- RIDE
+track 4
+tempo 132
+swing 58
+volume 50
+swing_ride(8)

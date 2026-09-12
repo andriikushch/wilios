@@ -1,0 +1,47 @@
+// ============================================================
+//  bossa.wilios — bossa nova style pack (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/bossa.wilios"
+//
+//  STYLE NOTES  (copy the settings into every track)
+//    Tempo   120-170     swing 50 — STRAIGHT 8ths, do NOT swing     meter 4/4
+//    Presets lead brass/epiano ; comp epiano (rootless, gentle) ;
+//            bass on root-5th ; hihat_c soft
+//    Form    32-bar AABA or 16-bar
+//    Devices clave-derived comp rhythm, bass on root/5th only, smooth
+//            maj7 / m7 / m7b5 harmony, legato singable melody, pan the
+//            comp slightly off-centre
+//
+//  Demo: examples/bossa_from_lib.wilios
+// ============================================================
+
+import "comp.wilios"
+import "grooves.wilios"
+
+// --- bossa_bass_n(root, fifth, n): `n` two-bar bossa bass cells (root on
+//     1, fifth on 3), straight.
+let bossa_bass_n = func(root, fifth, n) {
+    let i = 0
+    loop (i < n) {
+        i = i + 1
+        bossa_bass2(root, fifth)
+    }
+}
+
+// --- bossa_comp_n(v, n): `n` two-bar clave comp figures on voicing `v`.
+let bossa_comp_n = func(v, n) {
+    let i = 0
+    loop (i < n) {
+        i = i + 1
+        bossa_comp2(v)
+    }
+}
+
+// --- bossa_melody_frag(key): a 4-bar legato phrase, straight 8ths.
+//     `key` = the lead-register tonic (e.g. <A4>).
+let bossa_melody_frag = func(key) {
+    <key> 1/4 <transpose(key, 2)> 1/4 <transpose(key, 4)> 1/2
+    <transpose(key, 7)> 1/4 <transpose(key, 4)> 1/4 <transpose(key, 2)> 1/2
+    <transpose(key, 4)> 1/2 <transpose(key, -1)> 1/2
+    <key> 1/1
+}

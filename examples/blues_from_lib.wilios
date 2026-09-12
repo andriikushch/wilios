@@ -1,0 +1,51 @@
+// ============================================================
+//  "Twelve From The Shelf" — a 12-bar jazz blues in F, one chorus,
+//  assembled from the jazz-composer idiom library.   DEMO
+//
+//  Style : jazz blues   Tempo : 138     Feel : swing 68
+//  Meter : 4/4          Form  : 12-bar blues (one chorus)
+//  Band  : brass lead + walking bass + ride + kick/snare
+//
+//  Changes (one bar each):
+//    | F7  | Bb7 | F7  | F7  |
+//    | Bb7 | Bb7 | F7  | D7  |
+//    | Gm7 | C7  | F7 D7 | Gm7 C7 |
+//
+//  Run it:
+//    cargo run -- dump   examples/blues_from_lib.wilios --format roll
+//    cargo run -- render examples/blues_from_lib.wilios -o /tmp/f.wav
+//
+//  Compare examples/blues_f.wilios — same form, hand-spelled.
+// ============================================================
+
+import "../skills/jazz-composer/lib/blues.wilios"
+
+// ---- LEAD: a riff head — the riff, up a fourth over Bb7, then home.
+track 1
+tempo 138
+swing 68
+volume 92
+brass()
+blues_riff_head(F4)
+
+// ---- WALKING BASS: a full 12-bar chorus, one walk_bar per bar.
+track 2
+tempo 138
+swing 68
+volume 100
+bass()
+blues_walk12(F1)
+
+// ---- RIDE
+track 3
+tempo 138
+swing 68
+volume 52
+swing_ride(12)
+
+// ---- KICK + SNARE
+track 4
+tempo 138
+swing 68
+volume 46
+kit_swing(12)

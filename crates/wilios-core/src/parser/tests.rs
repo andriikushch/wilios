@@ -15,6 +15,7 @@ fn parse_tempo_1() {
     let program = Parser::new(tokens).parse().unwrap();
 
     let tracks = TrackAst {
+        line: 0,
         id: 0,
         statements: vec![Stmt::Tempo(10)],
     };
@@ -34,6 +35,7 @@ fn parse_time_signature() {
     let program = Parser::new(tokens).parse().unwrap();
 
     let tracks = TrackAst {
+        line: 0,
         id: 0,
         statements: vec![Stmt::TimeSignature(TimeSignature {
             numerator: 3,
@@ -105,6 +107,7 @@ fn parse_rest_1() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::Rest {
                 duration: Duration {
@@ -137,6 +140,7 @@ fn parse_rest_2() {
 
     let tracks = vec![
         TrackAst {
+            line: 0,
             id: 0,
             statements: vec![
                 Stmt::Rest {
@@ -158,6 +162,7 @@ fn parse_rest_2() {
             ],
         },
         TrackAst {
+            line: 0,
             id: 2,
             statements: vec![Stmt::Rest {
                 duration: Duration {
@@ -172,7 +177,7 @@ fn parse_rest_2() {
 
     let expected = Program {
         global_stmts: vec![],
-        tracks: tracks,
+        tracks,
     };
 
     assert_eq!(program, expected);
@@ -188,6 +193,7 @@ fn parse_note_1() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::Chord {
                 pitches: vec![Expr::Pitch(Pitch {
@@ -218,6 +224,7 @@ fn parse_chord_1() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::Chord {
                 pitches: vec![
@@ -258,6 +265,7 @@ fn parse_pan() {
     let program = Parser::new(tokens).parse().unwrap();
 
     let tracks = TrackAst {
+        line: 0,
         id: 0,
         statements: vec![Stmt::Pan(100), Stmt::Pan(-50)],
     };
@@ -278,6 +286,7 @@ fn parse_volume() {
     let program = Parser::new(tokens).parse().unwrap();
 
     let tracks = TrackAst {
+        line: 0,
         id: 0,
         statements: vec![Stmt::Volume(100), Stmt::Volume(0)],
     };
@@ -306,6 +315,7 @@ fn parse_loop_with_condition() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::Loop {
                 condition: Expr::Binary {
@@ -339,6 +349,7 @@ fn parse_lopp_with_condition_true() {
     let program = Parser::new(tokens).parse().unwrap();
 
     let tracks = TrackAst {
+        line: 0,
         id: 0,
         statements: vec![Stmt::Loop {
             condition: Expr::Bool(true),
@@ -421,7 +432,11 @@ fn parse_let_2() {
             Stmt::Let {
                 name: Ident("my_var_b".to_string()),
                 value: Expr::Binary {
-                    left: Box::new(Expr::Var(Ident("my_var_a".to_string()))),
+                    left: Box::new(Expr::Var {
+                        name: Ident("my_var_a".to_string()),
+                        line: 0,
+                        col: 0,
+                    }),
                     op: BinaryOp::Add,
                     right: Box::new(Expr::Int(1)),
                 },
@@ -454,7 +469,11 @@ fn parse_assign_1() {
             Stmt::Assign {
                 name: Ident("my_var_a".to_string()),
                 value: Expr::Binary {
-                    left: Box::new(Expr::Var(Ident("my_var_a".to_string()))),
+                    left: Box::new(Expr::Var {
+                        name: Ident("my_var_a".to_string()),
+                        line: 0,
+                        col: 0,
+                    }),
                     op: BinaryOp::Add,
                     right: Box::new(Expr::Int(1)),
                 },
@@ -476,6 +495,7 @@ fn parse_if_no_else() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::If {
                 condition: Expr::Bool(true),
@@ -498,6 +518,7 @@ fn parse_if_else() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 0,
             statements: vec![Stmt::If {
                 condition: Expr::Bool(true),
@@ -519,6 +540,7 @@ fn parse_fm_block_algorithm_only() {
     let expected = Program {
         global_stmts: vec![],
         tracks: vec![TrackAst {
+            line: 0,
             id: 1,
             statements: vec![Stmt::FmBlock {
                 ops: vec![],
@@ -693,10 +715,12 @@ fn parse_global_reentry() {
         ],
         tracks: vec![
             TrackAst {
+                line: 0,
                 id: 1,
                 statements: vec![Stmt::Tempo(120)],
             },
             TrackAst {
+                line: 0,
                 id: 2,
                 statements: vec![Stmt::Tempo(240)],
             },
@@ -1066,7 +1090,11 @@ fn parse_array_index_read() {
         vec![Stmt::Let {
             name: Ident("x".into()),
             value: Expr::Index {
-                array: Box::new(Expr::Var(Ident("a".into()))),
+                array: Box::new(Expr::Var {
+                    name: Ident("a".into()),
+                    line: 0,
+                    col: 0,
+                }),
                 index: Box::new(Expr::Int(0)),
             },
         }]
@@ -1095,9 +1123,17 @@ fn parse_array_nested_index() {
         vec![Stmt::Let {
             name: Ident("x".into()),
             value: Expr::Index {
-                array: Box::new(Expr::Var(Ident("a".into()))),
+                array: Box::new(Expr::Var {
+                    name: Ident("a".into()),
+                    line: 0,
+                    col: 0,
+                }),
                 index: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("b".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("b".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(0)),
                 }),
             },
@@ -1115,12 +1151,20 @@ fn parse_array_index_in_expr() {
             name: Ident("x".into()),
             value: Expr::Binary {
                 left: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("a".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("a".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(0)),
                 }),
                 op: BinaryOp::Add,
                 right: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("a".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("a".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(1)),
                 }),
             },

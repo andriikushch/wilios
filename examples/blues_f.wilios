@@ -1,0 +1,103 @@
+// ============================================================
+//  "Blue F" — a 12-bar F blues, one chorus.   TEACHING EXAMPLE
+//
+//  Style : medium swing blues      Tempo : 132     Feel : swing 66
+//  Meter : 4/4                     Form  : 12-bar blues (one chorus)
+//  Band  : brass lead + walking bass + drum kit
+//
+//  Changes (one bar each):
+//    | F7  | Bb7 | F7  | F7  |
+//    | Bb7 | Bb7 | F7  | D7  |
+//    | Gm7 | C7  | F7 D7 | Gm7 C7 |
+//
+//  Run it:
+//    cargo run -- dump   examples/blues_f.wilios --format roll
+//    cargo run -- render examples/blues_f.wilios -o /tmp/f.wav
+//    cargo run -- midi   examples/blues_f.wilios -o /tmp/f.mid
+//
+//  Every track repeats `tempo 132` and `swing 66`: tempo and feel are
+//  per-track and MUST match, or the tracks drift apart.
+//
+//  wilios has no chord symbols — the harmony above is a comment; every
+//  sounding note is spelled by name. Each phrase below is written as a
+//  self-contained run of note/rest statements; a phrase `func` may also
+//  call other global `func`s (and the builtins) if you prefer to factor
+//  shared licks out.
+// ============================================================
+
+import "../lib/lib.wilios"
+
+// --- LEAD: a riff-based blues head, phrased 4 / 4 / 4 bars.
+//     Bars 1-2 state a call; bars 5-6 answer it up a fourth over Bb7;
+//     bars 9-10 run the ii-V (Gm7 C7); bars 11-12 are a bebop turnaround
+//     enclosing the 3rd of F7.
+let head = func() {
+    // | F7 |                              | Bb7 |
+    <F4> 1/8 <Ab4> 1/8 <A4> 1/8 <C5> 1/8   <A4> 1/4 rest 1/4
+    rest 1/2                               <Bb4> 1/8 <Db5> 1/8 <D5> 1/8 <F5> 1/8
+    // | F7 |                              | F7 |
+    <D5> 1/4 <C5> 1/8 <A4> 1/8             <F4> 1/4 rest 1/4
+    rest 1/1
+    // | Bb7 |                             | Bb7 |
+    <Bb4> 1/8 <D5> 1/8 <F5> 1/8 <Ab5> 1/8  <G5> 1/4 rest 1/4
+    <F5> 1/8 <D5> 1/8 <Bb4> 1/8 <D5> 1/8   <F5> 1/4 rest 1/4
+    // | F7 |                              | D7 |
+    <A4> 1/4 <C5> 1/8 <A4> 1/8             <F4> 1/4 rest 1/4
+    <C5> 1/8 <A4> 1/8 <F#4> 1/8 <A4> 1/8   <D4> 1/4 rest 1/4
+    // | Gm7 |                             | C7 |
+    <Bb4> 1/8 <D5> 1/8 <G5> 1/8 <Bb5> 1/8  <A5> 1/4 rest 1/4
+    <G5> 1/8 <E5> 1/8 <Bb4> 1/8 <C5> 1/8   <E5> 1/4 rest 1/4
+    // | F7   D7 |                         | Gm7   C7 |
+    <F5> 1/8 <A4> 1/8 <C5> 1/8 <Eb5> 1/8   <D5> 1/8 <F#4> 1/8 <A4> 1/8 <C5> 1/8
+    <Bb4> 1/8 <D5> 1/8 <G4> 1/8 <Bb4> 1/8  <E4> 1/4 rest 1/4
+}
+
+// --- BASS: walking quarter notes. Mostly root - 3rd - 5th - approach,
+//     with chromatic approach tones landing on the next bar's root.
+let bass_head = func() {
+    <F1> 1/4 <A1> 1/4 <C2> 1/4 <E2> 1/4      // F7
+    <Bb1> 1/4 <D2> 1/4 <F2> 1/4 <Ab1> 1/4    // Bb7
+    <F1> 1/4 <A1> 1/4 <C2> 1/4 <Eb2> 1/4     // F7
+    <F1> 1/4 <G1> 1/4 <A1> 1/4 <B1> 1/4      // F7  -> walk up to Bb
+    <Bb1> 1/4 <D2> 1/4 <F2> 1/4 <G1> 1/4     // Bb7
+    <Bb1> 1/4 <A1> 1/4 <Ab1> 1/4 <G1> 1/4    // Bb7 -> chromatic down to F
+    <F1> 1/4 <A1> 1/4 <C2> 1/4 <Db2> 1/4     // F7  -> Db approaches D7
+    <D2> 1/4 <F#1> 1/4 <A1> 1/4 <C2> 1/4     // D7
+    <G1> 1/4 <Bb1> 1/4 <D2> 1/4 <E2> 1/4     // Gm7
+    <C2> 1/4 <E2> 1/4 <G1> 1/4 <Bb1> 1/4     // C7
+    <F1> 1/4 <A1> 1/4 <D2> 1/4 <F#1> 1/4     // F7 D7
+    <G1> 1/4 <Bb1> 1/4 <C2> 1/4 <E2> 1/4     // Gm7 C7  (turnaround)
+}
+
+// ---- LEAD ----
+track 1
+tempo 132
+swing 66
+volume 92
+brass()
+head()
+
+// ---- WALKING BASS ----
+track 2
+tempo 132
+swing 66
+volume 100
+bass()
+bass_head()
+
+// ---- DRUMS ----
+// One bar of kick / hi-hat / snare / hi-hat, repeated 12 times. The preset
+// is re-selected per note (kick/snare/hihat_c share this one track) — for a
+// bigger arrangement give each drum voice its own track, as bebop_trio does.
+track 3
+tempo 132
+swing 66
+volume 50
+let d = 0
+loop (d < 12) {
+    d = d + 1
+    kick()    <B1> 1/4
+    hihat_c() <F5> 1/4
+    snare()   <A3> 1/4
+    hihat_c() <F5> 1/4
+}

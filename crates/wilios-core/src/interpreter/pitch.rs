@@ -71,3 +71,36 @@ pub fn pitch_to_semitone(p: Pitch) -> i32 {
         Accidental::Flat => base - 1,
     }
 }
+
+/// MIDI note number (0–127, clamped) for a pitch in the given scientific octave.
+/// `C4` = 60, `A4` = 69. wilios' internal semitone index puts A4 at 57; MIDI puts
+/// it at 69, hence the `+ 12` (i.e. `12 * (octave + 1)`).
+pub fn midi_note_number(p: Pitch, octave: u8) -> u8 {
+    (pitch_to_semitone(p) + 12 * (octave as i32 + 1)).clamp(0, 127) as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pitch(letter: char, accidental: isize) -> Pitch {
+        Pitch {
+            name: PitchName::from_string(letter),
+            accidental: Accidental::from_int(accidental),
+        }
+    }
+
+    #[test]
+    fn midi_note_number_anchors() {
+        assert_eq!(midi_note_number(pitch('C', 0), 4), 60);
+        assert_eq!(midi_note_number(pitch('A', 0), 4), 69);
+        assert_eq!(midi_note_number(pitch('C', 0), 0), 12);
+        assert_eq!(midi_note_number(pitch('G', 1), 9), 127); // clamps at the top
+    }
+
+    #[test]
+    fn midi_note_number_accidentals() {
+        assert_eq!(midi_note_number(pitch('F', 1), 4), 66); // F#4
+        assert_eq!(midi_note_number(pitch('E', -1), 3), 51); // Eb3
+    }
+}

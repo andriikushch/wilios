@@ -240,6 +240,13 @@ impl TempoHistory {
     pub fn ms_at(&self, position: Beats) -> Result<u64, TimeError> {
         Ok(round_half_up(self.exact_ms_at(position)?))
     }
+
+    /// Ordered `(position, bpm)` breakpoints — the whole tempo map, for offline
+    /// consumers that need every tempo change (MIDI export). Always starts with
+    /// the initial tempo at position 0.
+    pub fn breakpoints(&self) -> impl Iterator<Item = (Beats, u32)> + '_ {
+        self.breakpoints.iter().map(|b| (b.position, b.bpm))
+    }
 }
 
 #[cfg(test)]

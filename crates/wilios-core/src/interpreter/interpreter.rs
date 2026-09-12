@@ -18,6 +18,16 @@ use crate::{
     time::{self, Beats, TempoHistory},
 };
 
+/// Maximum nested depth of synchronous (expression-position) user-function
+/// calls. `Expr::Call` evaluates a `func` body via `eval_body_sync`, which
+/// recurses on the native stack; past this bound we return a `RuntimeError`
+/// rather than overflow the process. Kept well below the point where the
+/// (large, in debug builds) `eval` stack frames would exhaust a small thread
+/// stack — musical phrase nesting is realistically shallow. The
+/// statement-position call path is bounded separately by `MAX_STEPS` in
+/// `schedule_until`.
+const MAX_CALL_DEPTH: usize = 128;
+
 #[derive(Debug)]
 pub struct RuntimeError(pub String);
 
@@ -77,10 +87,20 @@ pub struct TrackContext {
     pub fm_depth: f32,
     pub fm_block: Option<FmBlockConfig>,
     pub swing: f32,
+    /// Per-track resonant low-pass filter. `cutoff_hz` defaults to 20000 (open);
+    /// `resonance` is 0..1.
+    pub cutoff_hz: f32,
+    pub resonance: f32,
+    /// Per-track vibrato LFO: `vibrato_depth_cents` 0 = off, `vibrato_rate_hz` in Hz.
+    pub vibrato_depth_cents: f32,
+    pub vibrato_rate_hz: f32,
     pub time_signature: TimeSignature,
 
     pub env_vars: HashMap<Ident, Value>,
     pub saved_envs: Vec<HashMap<Ident, Value>>,
+    /// Current nested depth of synchronous (expression-position) user-function
+    /// calls; bounded by `MAX_CALL_DEPTH`.
+    pub call_depth: usize,
 }
 
 #[derive(Clone)]
@@ -162,10 +182,23 @@ fn semitone_for_letter(letter: char) -> i64 {
     }
 }
 
-fn semitone_to_pitch(semitone: i64) -> Pitch {
-    let octave = (semitone / 12).max(0) as usize;
+/// Map an absolute semitone (C0 = 0) back to a spelled pitch.
+///
+/// Naturals map straight through. A black-key class is spelled as the flat of
+/// the natural above it (`Db Eb Gb Ab Bb`) when `prefer_flats`, otherwise as
+/// the sharp of the natural below it (`C# D# F# G# A#`) — so a flat source
+/// pitch transposes to flat output and a natural/sharp source stays sharp.
+/// C0 is the lowest representable pitch (`octave` is unsigned); a result below
+/// it is a runtime error rather than a silent clamp.
+fn semitone_to_pitch(semitone: i64, prefer_flats: bool) -> Result<Pitch, RuntimeError> {
+    if semitone < 0 {
+        return Err(RuntimeError(
+            "transpose: result is below C0, the lowest representable pitch".into(),
+        ));
+    }
+    let octave = (semitone / 12) as usize;
     let class = semitone.rem_euclid(12);
-    // Natural semitone positions; class+1 = sharp of that note
+    // Natural semitone positions.
     const NATURALS: [(char, i64); 7] = [
         ('C', 0),
         ('D', 2),
@@ -175,29 +208,36 @@ fn semitone_to_pitch(semitone: i64) -> Pitch {
         ('A', 9),
         ('B', 11),
     ];
-    for &(letter, nat) in &NATURALS {
-        if class == nat {
-            return Pitch {
-                letter,
-                accidental: 0,
-                octave,
-            };
-        }
-        if class == nat + 1 {
-            return Pitch {
-                letter,
-                accidental: 1,
-                octave,
-            };
-        }
+    if let Some(&(letter, _)) = NATURALS.iter().find(|&&(_, nat)| nat == class) {
+        return Ok(Pitch {
+            letter,
+            accidental: 0,
+            octave,
+        });
     }
-    // B# edge case (semitone 12 within octave, treated as C of next octave by rem_euclid — unreachable)
-    panic!("semitone_to_pitch: unreachable class {}", class);
+    let flat_of_natural_above = prefer_flats
+        .then(|| NATURALS.iter().find(|&&(_, nat)| nat == class + 1))
+        .flatten();
+    if let Some(&(letter, _)) = flat_of_natural_above {
+        return Ok(Pitch {
+            letter,
+            accidental: -1,
+            octave,
+        });
+    }
+    if let Some(&(letter, _)) = NATURALS.iter().find(|&&(_, nat)| nat + 1 == class) {
+        return Ok(Pitch {
+            letter,
+            accidental: 1,
+            octave,
+        });
+    }
+    unreachable!("semitone_to_pitch: class {class} is not a natural or its neighbour");
 }
 
-fn transpose_one(p: &Pitch, n: i64) -> Pitch {
+fn transpose_one(p: &Pitch, n: i64) -> Result<Pitch, RuntimeError> {
     let abs = semitone_for_letter(p.letter) + p.accidental as i64 + p.octave as i64 * 12;
-    semitone_to_pitch(abs + n)
+    semitone_to_pitch(abs + n, p.accidental < 0)
 }
 
 fn builtin_transpose(args: Vec<Value>) -> Result<Value, RuntimeError> {
@@ -213,9 +253,11 @@ fn builtin_transpose(args: Vec<Value>) -> Result<Value, RuntimeError> {
         }
     };
     match &args[0] {
-        Value::Pitch(p) => Ok(Value::Pitch(transpose_one(p, n))),
+        Value::Pitch(p) => Ok(Value::Pitch(transpose_one(p, n)?)),
         Value::Chord(ps) => Ok(Value::Chord(
-            ps.iter().map(|p| transpose_one(p, n)).collect(),
+            ps.iter()
+                .map(|p| transpose_one(p, n))
+                .collect::<Result<Vec<_>, _>>()?,
         )),
         _ => Err(RuntimeError(
             "transpose: first argument must be a pitch or chord".into(),
@@ -244,6 +286,11 @@ pub struct BuiltinSpec {
     pub signature: &'static str,
     pub doc: &'static str,
     pub example: &'static str,
+    /// Minimum argument count actually enforced by `func` at runtime.
+    pub min_args: usize,
+    /// Maximum argument count actually enforced by `func` at runtime;
+    /// `None` means variadic (no upper bound).
+    pub max_args: Option<usize>,
     pub func: fn(Vec<Value>) -> Result<Value, RuntimeError>,
 }
 
@@ -253,6 +300,10 @@ pub static BUILTINS: &[BuiltinSpec] = &[
         signature: "print(value, value, ...) -> Int",
         doc: "Print one or more values to standard output, separated by spaces. Returns 0.",
         example: "print(42)",
+        // builtin_print never checks args.len(); print() with zero args is
+        // valid (prints an empty line), so there is no enforced minimum.
+        min_args: 0,
+        max_args: None,
         func: builtin_print,
     },
     BuiltinSpec {
@@ -260,13 +311,17 @@ pub static BUILTINS: &[BuiltinSpec] = &[
         signature: "rand(min: Int, max: Int) -> Int",
         doc: "Return a random integer in the range [min, max] inclusive.",
         example: "let n = rand(1, 6)",
+        min_args: 2,
+        max_args: Some(2),
         func: builtin_rand,
     },
     BuiltinSpec {
         name: "transpose",
         signature: "transpose(value: Pitch | Chord, semitones: Int) -> Pitch | Chord",
-        doc: "Transpose a pitch or chord by a given number of semitones. Positive semitones transpose up; negative transpose down.",
+        doc: "Transpose a pitch or chord by a given number of semitones. Positive semitones transpose up; negative transpose down. A flat input spells black keys as flats (Eb, not D#); a natural or sharp input spells them as sharps. Transposing below C0 is a runtime error.",
         example: "let fifth = transpose(C4, 7)",
+        min_args: 2,
+        max_args: Some(2),
         func: builtin_transpose,
     },
     BuiltinSpec {
@@ -274,6 +329,8 @@ pub static BUILTINS: &[BuiltinSpec] = &[
         signature: "len(array: Array) -> Int",
         doc: "Return the number of elements in an array.",
         example: "let n = len([C4, E4, G4])",
+        min_args: 1,
+        max_args: Some(1),
         func: builtin_len,
     },
 ];
@@ -315,6 +372,10 @@ impl Interpreter {
                 fm_depth: 0.0,
                 fm_block: None,
                 swing: 50.0,
+                cutoff_hz: 20_000.0,
+                resonance: 0.0,
+                vibrato_depth_cents: 0.0,
+                vibrato_rate_hz: 0.0,
                 time_signature: TimeSignature {
                     numerator: 4,
                     denominator: 4,
@@ -322,6 +383,7 @@ impl Interpreter {
                 pc: 0,
                 env_vars: initial_env,
                 saved_envs: Vec::new(),
+                call_depth: 0,
             }
         };
         let mut dummy: Vec<Event> = Vec::new();
@@ -429,6 +491,7 @@ impl Interpreter {
                                         .saved_envs
                                         .pop()
                                         .expect("FunctionCall frame popped with no saved env");
+                                    track.ctx.call_depth = track.ctx.call_depth.saturating_sub(1);
                                 }
                             }
                         } else if track.ctx.pc < track.ast.statements.len() {
@@ -470,6 +533,22 @@ impl Interpreter {
         }
 
         Ok(out)
+    }
+
+    /// Drive every track to completion — or until `max_ms` of composition time
+    /// is reached, whichever comes first — and return every event emitted,
+    /// paired with whether the piece actually ended.
+    ///
+    /// `finished == false` means scheduling stopped at the bound (or hit the
+    /// internal per-call step cap): the source contains an endless loop, or is
+    /// simply longer than `max_ms`. Callers given an explicit time bound can
+    /// treat that as normal; callers relying on natural termination should
+    /// report it as an error. This is the entry point for offline consumers
+    /// (`wilios dump`, the `dump_events` MCP tool) that want the whole timeline
+    /// in one shot rather than a rolling window like the audio path.
+    pub fn schedule_to_end(&mut self, max_ms: u64) -> Result<(Vec<Event>, bool), RuntimeError> {
+        let events = self.schedule_until(0, max_ms)?;
+        Ok((events, self.all_tracks_finished()))
     }
 
     /// Execute a single statement.
@@ -519,6 +598,10 @@ impl Interpreter {
                                 fm_ratio: ctx.fm_ratio,
                                 fm_depth: ctx.fm_depth,
                                 fm_block: ctx.fm_block.clone(),
+                                cutoff_hz: ctx.cutoff_hz,
+                                resonance: ctx.resonance,
+                                vibrato_depth_cents: ctx.vibrato_depth_cents,
+                                vibrato_rate_hz: ctx.vibrato_rate_hz,
                                 time_signature: ctx.time_signature,
                             },
                         });
@@ -674,6 +757,40 @@ impl Interpreter {
                 ctx.swing = val;
                 Ok(false)
             }
+            Stmt::Cutoff(expr) => {
+                let val = Self::eval_number(expr, ctx, "cutoff")?;
+                if val < 0.0 {
+                    return Err(RuntimeError(format!(
+                        "cutoff: value {val:.1} must not be negative"
+                    )));
+                }
+                // Clamping to the audible / Nyquist range happens in the synth
+                // so a `dump` still shows the authored figure.
+                ctx.cutoff_hz = val;
+                Ok(false)
+            }
+            Stmt::Resonance(expr) => {
+                let val = Self::eval_number(expr, ctx, "resonance")?;
+                if val < 0.0 {
+                    return Err(RuntimeError(format!(
+                        "resonance: value {val:.2} must not be negative"
+                    )));
+                }
+                ctx.resonance = val;
+                Ok(false)
+            }
+            Stmt::Vibrato { depth, rate } => {
+                let d = Self::eval_number(depth, ctx, "vibrato depth")?;
+                let r = Self::eval_number(rate, ctx, "vibrato rate")?;
+                if d < 0.0 || r < 0.0 {
+                    return Err(RuntimeError(
+                        "vibrato: depth and rate must not be negative".into(),
+                    ));
+                }
+                ctx.vibrato_depth_cents = d;
+                ctx.vibrato_rate_hz = r;
+                Ok(false)
+            }
             Stmt::FmBlock { ops, algorithm } => {
                 let evaluated_ops: Vec<FmOpConfig> = ops
                     .iter()
@@ -784,7 +901,23 @@ impl Interpreter {
                             .iter()
                             .map(|a| Self::eval(a, ctx))
                             .collect::<Result<Vec<_>, _>>()?;
-                        let caller_env = std::mem::take(&mut ctx.env_vars);
+                        // Bound recursion: each pushed FunctionCall frame also
+                        // clones the caller env into `saved_envs`, so runaway
+                        // recursion would grow the heap until MAX_STEPS. Cap it
+                        // and report cleanly instead. Decremented on frame
+                        // teardown (see `schedule_until`).
+                        if ctx.call_depth >= MAX_CALL_DEPTH {
+                            return Err(RuntimeError(
+                                "call stack too deep (possible infinite recursion)".into(),
+                            ));
+                        }
+                        ctx.call_depth += 1;
+                        // Snapshot the caller's env so it can be restored on
+                        // return, but keep it live as the body's base scope
+                        // (clone, not take) — so a func body can see other
+                        // top-level funcs, globals, and the builtins. Params
+                        // are layered on top and shadow.
+                        let caller_env = ctx.env_vars.clone();
                         ctx.saved_envs.push(caller_env);
                         for (param, val) in params.into_iter().zip(arg_vals) {
                             ctx.env_vars.insert(param, val);
@@ -935,6 +1068,16 @@ impl Interpreter {
             .map_err(RuntimeError::from)
     }
 
+    /// Evaluate `expr` and require a numeric result (`Int` or `Float`), naming
+    /// `what` in the error. Used by the tone-shaping statements.
+    fn eval_number(expr: &Expr, ctx: &mut TrackContext, what: &str) -> Result<f32, RuntimeError> {
+        match Self::eval(expr, ctx)? {
+            Value::Int(n) => Ok(n as f32),
+            Value::Float(f) => Ok(f),
+            _ => Err(RuntimeError(format!("{what}: expected a numeric value"))),
+        }
+    }
+
     fn eval(expr: &Expr, ctx: &mut TrackContext) -> Result<Value, RuntimeError> {
         match expr {
             Expr::Int(i) => Ok(Value::Int(*i as i64)),
@@ -975,11 +1118,11 @@ impl Interpreter {
                 }
             },
 
-            Expr::Var(v) => ctx
+            Expr::Var { name, .. } => ctx
                 .env_vars
-                .get(v)
+                .get(name)
                 .cloned()
-                .ok_or_else(|| RuntimeError(format!("Undefined variable: {:?}", v))),
+                .ok_or_else(|| RuntimeError(format!("Undefined variable: {:?}", name))),
 
             Expr::Func { params, body } => Ok(Value::Func {
                 params: params.clone(),
@@ -994,13 +1137,23 @@ impl Interpreter {
                             .iter()
                             .map(|a| Self::eval(a, ctx))
                             .collect::<Result<Vec<_>, _>>()?;
-                        let saved_env = std::mem::take(&mut ctx.env_vars);
+                        if ctx.call_depth >= MAX_CALL_DEPTH {
+                            return Err(RuntimeError(
+                                "call stack too deep (possible infinite recursion)".into(),
+                            ));
+                        }
+                        // Clone (not take) so the body can still see other
+                        // top-level funcs, globals, and the builtins; params
+                        // are layered on top and shadow. Restored on return.
+                        let saved_env = ctx.env_vars.clone();
                         for (param, val) in params.iter().zip(arg_vals) {
                             ctx.env_vars.insert(param.clone(), val);
                         }
-                        let result = Self::eval_body_sync(&body, ctx)?;
+                        ctx.call_depth += 1;
+                        let result = Self::eval_body_sync(&body, ctx);
+                        ctx.call_depth -= 1;
                         ctx.env_vars = saved_env;
-                        Ok(result)
+                        result
                     }
                     Value::Builtin(f) => {
                         let arg_vals: Vec<Value> = args

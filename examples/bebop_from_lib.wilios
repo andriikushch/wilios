@@ -1,0 +1,49 @@
+// ============================================================
+//  "Library Changes" — an 8-bar bebop A-section, assembled entirely
+//  from the jazz-composer idiom library.   DEMO
+//
+//  Style : bebop        Tempo : 200     Feel : swing 63
+//  Meter : 4/4          Form  : one 8-bar A section (rhythm-changes feel)
+//  Band  : brass lead + walking bass + ride + kick/snare
+//
+//  Run it:
+//    cargo run -- dump   examples/bebop_from_lib.wilios --format roll
+//    cargo run -- render examples/bebop_from_lib.wilios -o /tmp/b.wav
+//    cargo run -- midi   examples/bebop_from_lib.wilios -o /tmp/b.mid
+//
+//  Every track repeats `tempo 200` and `swing 63`. The whole piece is
+//  four helper calls per track — see skills/jazz-composer/lib/ and
+//  references/idiom-library.md.
+// ============================================================
+
+import "../skills/jazz-composer/lib/bebop.wilios"
+
+// ---- LEAD: an 8-bar line built from ii-V-I + turnaround sub-phrases.
+track 1
+tempo 200
+swing 63
+volume 90
+brass()
+bebop_a_line(Bb4)
+
+// ---- WALKING BASS: tonic outline with a leading-tone approach each bar.
+track 2
+tempo 200
+swing 63
+volume 100
+bass()
+bebop_a_bass(Bb1, 2)
+
+// ---- RIDE
+track 3
+tempo 200
+swing 63
+volume 52
+swing_ride(8)
+
+// ---- KICK + SNARE
+track 4
+tempo 200
+swing 63
+volume 46
+kit_swing(8)

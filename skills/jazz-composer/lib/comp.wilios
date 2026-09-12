@@ -1,0 +1,39 @@
+// ============================================================
+//  comp.wilios — comping rhythm cells (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/comp.wilios"
+//
+//  Each helper takes a *hand-spelled voicing* (a chord value) and emits
+//  exactly one 4/4 bar of that chord placed with a characteristic comp
+//  rhythm. Spell the voicing yourself (see references/voicings.md) and
+//  pass it in; vary which cell you use bar to bar.
+//
+//      charleston(<F3, A3, C4, E4>)      // one bar, "Charleston" hits
+//
+//  Statement position only; nothing is returned.
+// ============================================================
+
+// --- charleston(v): beat 1 and the 'and' of 2 — the staple comp figure.
+let charleston = func(v) {
+    <v> 1/8 rest 3/8   rest 1/8 <v> 1/8 rest 1/4
+}
+
+// --- push(v): a single anticipation on the 'and' of 4, nothing before it.
+//     Use it to lead into a new chord in the next bar.
+let push = func(v) {
+    rest 1/2 rest 1/4 rest 1/8 <v> 1/8
+}
+
+// --- stab(v): one short chord on the 'and' of 2, otherwise silence.
+//     The sparsest cell — leave room.
+let stab = func(v) {
+    rest 3/8 <v> 1/8 rest 1/2
+}
+
+// --- bossa_comp2(v): the two-bar clave comp figure (straight, do NOT
+//     swing) — dotted quarter / dotted quarter / quarter, then the
+//     displaced answer bar.
+let bossa_comp2 = func(v) {
+    <v> 1/4. <v> 1/4. <v> 1/4
+    rest 1/4 <v> 1/4. <v> 1/4.
+}

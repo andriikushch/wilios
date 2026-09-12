@@ -1,5 +1,5 @@
 //! Machine-readable index of the wilios "standard library" — the DSL's 4
-//! built-in functions (see [`crate::interpreter::BUILTINS`]) plus the 9 FM
+//! built-in functions (see [`crate::interpreter::BUILTINS`]) plus the 14 FM
 //! presets defined in `lib/lib.wilios`. Backs `wilios-mcp`'s `describe_symbol`
 //! and `search_stdlib` tools.
 //!
@@ -12,7 +12,7 @@
 
 use crate::interpreter::BUILTINS;
 
-/// One of the 9 FM synthesis instrument presets in `lib/lib.wilios`. Unlike
+/// One of the 14 FM synthesis instrument presets in `lib/lib.wilios`. Unlike
 /// [`crate::interpreter::BuiltinSpec`], these can't be generated from a Rust
 /// registration site — the presets are wilios source, not Rust functions —
 /// so this table is hand-maintained.
@@ -37,10 +37,22 @@ pub static PRESETS: &[PresetSpec] = &[
         example: "track 1\nbrass()\n<C3> 1/4",
     },
     PresetSpec {
+        name: "trumpet",
+        category: "tonal",
+        doc: "Sustained FM brass with vibrato. A same-ratio modulator held through the sustain gives the buzzy body; a low-pass tames the fizz and a gentle vibrato adds air on held notes. Slower, tongued onset than brass; play <A3>-<A5>.",
+        example: "track 1\ntrumpet()\n<A3> 1/2",
+    },
+    PresetSpec {
         name: "bass",
         category: "tonal",
         doc: "Deep FM bass. A sub-octave modulator at high depth produces a thick, punchy transient over a clean fundamental.",
         example: "track 1\nbass()\n<A2> 1/4",
+    },
+    PresetSpec {
+        name: "upright",
+        category: "tonal",
+        doc: "Fingered acoustic bass. A same-ratio modulator at modest depth gives a soft, woody thump over a warm fundamental — rounder and less punchy than bass; play low like <E1>.",
+        example: "track 1\nupright()\n<E1> 1/4",
     },
     PresetSpec {
         name: "marimba",
@@ -53,6 +65,12 @@ pub static PRESETS: &[PresetSpec] = &[
         category: "tonal",
         doc: "Lush slow pad. Two 2-op pairs with slow attacks produce a smooth swell across a fundamental and octave layer.",
         example: "track 1\nstrings()\n<A3, C4> 1/2",
+    },
+    PresetSpec {
+        name: "comp_piano",
+        category: "tonal",
+        doc: "Sustaining comping keyboard. Two carrier layers hold a real sustain so voiced chords ring under a melody, unlike epiano's purely percussive decay; mild inharmonic modulators add tine colour.",
+        example: "track 1\ncomp_piano()\n<C3, E3, G3> 1/2",
     },
     PresetSpec {
         name: "kick",
@@ -78,6 +96,18 @@ pub static PRESETS: &[PresetSpec] = &[
         doc: "Open hi-hat. Same topology as hihat_c but with longer decay/release for a sustained \"tsss\" ring; play in the high register like <F5>.",
         example: "track 1\nhihat_o()\n<F5> 1/8",
     },
+    PresetSpec {
+        name: "ride",
+        category: "drum",
+        doc: "Ride cymbal. Lower, more musical inharmonic partials than the hi-hats plus long decay/release, so the strike blooms into a sustained shimmer wash rather than a short click; play high like <F5>.",
+        example: "track 1\nride()\n<F5> 1/4",
+    },
+    PresetSpec {
+        name: "brushes",
+        category: "drum",
+        doc: "Snare brush swish. A soft attack and mid-band inharmonic modulators give a breathy, sustained swish rather than snare's hard crack; play around <A3>.",
+        example: "track 1\nbrushes()\n<A3> 1/4",
+    },
 ];
 
 /// A stdlib symbol (builtin or preset), flattened into one shape for
@@ -91,9 +121,22 @@ pub struct Symbol {
     pub category: Option<&'static str>,  // presets only
     pub doc: &'static str,
     pub example: &'static str,
+    /// Minimum argument count. Builtins: from `BuiltinSpec`. Presets: every
+    /// FM preset in `lib/lib.wilios` is declared `func() { ... }` — zero
+    /// parameters — so this is uniformly `0`.
+    pub min_args: usize,
+    /// Maximum argument count; `None` means variadic. Presets: uniformly
+    /// `Some(0)`, matching `min_args`.
+    pub max_args: Option<usize>,
 }
 
-fn all_symbols() -> impl Iterator<Item = Symbol> {
+/// All stdlib symbols (builtins + presets), flattened for lookup/search/did-you-mean.
+///
+/// `pub` so `wilios_core::diagnostics::suggest` (did-you-mean candidates)
+/// and `wilios_core::resolve::checks` (arity checking) can consume it
+/// directly rather than duplicating this table — the same instruction the
+/// original `describe_symbol`/`search_stdlib` tools were built under.
+pub fn all_symbols() -> impl Iterator<Item = Symbol> {
     let builtins = BUILTINS.iter().map(|b| Symbol {
         name: b.name,
         kind: "builtin",
@@ -101,6 +144,8 @@ fn all_symbols() -> impl Iterator<Item = Symbol> {
         category: None,
         doc: b.doc,
         example: b.example,
+        min_args: b.min_args,
+        max_args: b.max_args,
     });
     let presets = PRESETS.iter().map(|p| Symbol {
         name: p.name,
@@ -109,6 +154,8 @@ fn all_symbols() -> impl Iterator<Item = Symbol> {
         category: Some(p.category),
         doc: p.doc,
         example: p.example,
+        min_args: 0,
+        max_args: Some(0),
     });
     builtins.chain(presets)
 }

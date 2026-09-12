@@ -1,4 +1,5 @@
 use anyhow::Result;
+use base64::Engine as _;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -12,6 +13,10 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+mod dump;
+mod render;
+mod validate;
 
 #[derive(Debug, Serialize, JsonSchema)]
 struct SymbolDoc {
@@ -51,12 +56,15 @@ struct SearchStdlibRequest {
 #[derive(Clone)]
 struct WiliosMcp {
     tool_router: ToolRouter<Self>,
+    /// Recent `render` outputs, readable via `wilios://render/<id>.…`.
+    renders: render::RenderStore,
 }
 
 impl WiliosMcp {
     fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
+            renders: render::RenderStore::new(),
         }
     }
 }
@@ -107,6 +115,36 @@ impl WiliosMcp {
             .collect();
         Ok(CallToolResult::success(vec![ContentBlock::json(matches)?]))
     }
+
+    #[tool(
+        description = "Check a wilios source (inline or by path) without rendering or executing it. Returns structured diagnostics: spans, stable error codes, and \"did you mean\" suggestions for unknown identifiers. Invalid source is a successful call with `ok: false` in the result, not a tool error."
+    )]
+    async fn validate(
+        &self,
+        Parameters(req): Parameters<validate::ValidateRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        validate::handle(req).await
+    }
+
+    #[tool(
+        description = "Run a wilios source (inline or by path) and return its per-track note-event timeline: onset (ms and exact beats), pitch spelling, MIDI note number and frequency, duration, velocity, pan, waveform, ADSR, and full FM operator config. Set `format` to `roll` for a compact ASCII piano roll (text) instead of the full JSON. Bounded by `max_ms` of composition time (default 60000) and a 5s wall-clock timeout; a piece that does not finish in that budget comes back with `finished: false` and truncated events — a successful call, not an error. Run `validate` first to confirm the source compiles."
+    )]
+    async fn dump_events(
+        &self,
+        Parameters(req): Parameters<dump::DumpRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        dump::handle(req).await
+    }
+
+    #[tool(
+        description = "Render a wilios source (inline or by path) to audio and return what it sounds like: the WAV, a waveform PNG, a log-frequency spectrogram PNG, and a compact analysis block (peak/RMS dBFS, clipped-sample count, limiter ratio, leading/trailing silence, per-track note count and pitch range). Use `want` to pick a subset, e.g. [\"analysis\",\"spectrogram\"], and skip the large audio payload. Audio and images come back as `wilios://render/<id>.…` resource links (read them with resources/read); pass `inline: true` for base64 blocks under 256 KiB. Executes the interpreter, bounded by `max_ms` of composition time (default 60000, clamped [1000,600000]) and a 30s wall clock. A piece that keeps emitting notes past `max_ms` returns `finished: false` with truncated output — a successful call, not an error; `used_rng: true` flags a piece whose `rand(...)` calls make renders non-reproducible. Run `validate` first to confirm the source compiles."
+    )]
+    async fn render(
+        &self,
+        Parameters(req): Parameters<render::RenderRequest>,
+    ) -> Result<CallToolResult, ErrorData> {
+        render::handle(&self.renders, req).await
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -134,7 +172,7 @@ impl ServerHandler for WiliosMcp {
                 .with_description("Formal ISO 14977 EBNF grammar for the wilios DSL")
                 .with_mime_type("text/plain"),
             Resource::new("wilios://lib/presets", "FM Preset Library")
-                .with_description("9 FM synthesis presets: epiano, brass, bass, marimba, strings, kick, snare, hihat_c, hihat_o")
+                .with_description("14 FM synthesis presets: epiano, brass, trumpet, bass, upright, marimba, strings, comp_piano, kick, snare, hihat_c, hihat_o, ride, brushes")
                 .with_mime_type("text/plain"),
             Resource::new("wilios://examples/full-piece", "Multi-Track Composition Example")
                 .with_description("4-track piece using import, func, loop, and multiple FM presets")
@@ -151,6 +189,26 @@ impl ServerHandler for WiliosMcp {
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, rmcp::ErrorData> {
         let uri = request.uri.as_str();
+
+        // Ephemeral render artifacts: `wilios://render/<id>.wav` etc., served
+        // from the in-memory store a `render` call populated.
+        if let Some(name) = uri.strip_prefix("wilios://render/") {
+            return match self.renders.blob(name) {
+                Some((bytes, mime)) => Ok(ReadResourceResult::new(vec![
+                    ResourceContents::blob(
+                        base64::engine::general_purpose::STANDARD.encode(bytes),
+                        request.uri,
+                    )
+                    .with_mime_type(mime),
+                ])
+                .into()),
+                None => Err(rmcp::ErrorData::resource_not_found(
+                    format!("Unknown or expired render artifact: {uri}"),
+                    None,
+                )),
+            };
+        }
+
         let (text, mime) = match uri {
             "wilios://docs/language-reference" => (LANGUAGE_REFERENCE, "text/markdown"),
             "wilios://docs/grammar" => (GRAMMAR, "text/plain"),

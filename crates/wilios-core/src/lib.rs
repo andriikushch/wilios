@@ -1,5 +1,9 @@
+pub mod diagnostics;
+#[cfg(feature = "serde")]
+pub mod dump;
 pub mod interpreter;
 pub mod lexer;
 pub mod parser;
+pub mod resolve;
 pub mod stdlib;
 pub mod time;

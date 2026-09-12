@@ -1,0 +1,50 @@
+// ============================================================
+//  modal.wilios — modal-jazz style pack (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/modal.wilios"
+//
+//  STYLE NOTES  (copy the settings into every track)
+//    Tempo   80-160     swing 55-62 or straight     meter 4/4, 3/4, 6/8
+//    Presets lead brass/strings ; comp epiano with QUARTAL voicings ;
+//            bass pedal or slow walk
+//    Form    long sections on one chord (8-16 bars), 2-chord vamps,
+//            AABA where each letter is a mode
+//    Devices sustained centres, pentatonic/modal melody, wide intervallic
+//            leaps, motion from register / rhythm / orchestration since
+//            the harmony is static
+//
+//  Demo: examples/modal_from_lib.wilios
+// ============================================================
+
+import "grooves.wilios"
+import "theory.wilios"
+
+// --- so_what_vamp(bars): the "So What" comp answer figure — a quartal
+//     Dm11 (E A D G C) shoved up a half step to Ebm11 on the 'and' of 2.
+let so_what_vamp = func(bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        rest 1/2   <E3, A3, D4, G4, C5> 1/8 <F3, Bb3, Eb4, Ab4, Db5> 1/8   rest 1/4
+    }
+}
+
+// --- modal_pedal(root, bars): a gentle root/5th oscillation under a
+//     static centre — half notes, `bars` bars.
+let modal_pedal = func(root, bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        <root> 1/2 <transpose(root, 7)> 1/2
+    }
+}
+
+// --- dorian_frag(key): a 4-bar sparse modal phrase with wide leaps,
+//     picked out of the Dorian scale (theory.wilios). `key` = the tonic.
+let dorian_frag = func(key) {
+    let s = scale_dorian(key)                        // [1 2 b3 4 5 6 b7]
+    <nth(s, 0)> 1/2 rest 1/2
+    <nth(s, 4)> 1/4 <nth(s, 5)> 1/4 <nth(s, 2)> 1/2
+    <nth(s, 6)> 1/1
+    rest 1/1
+}

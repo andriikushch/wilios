@@ -26,6 +26,9 @@ pub enum Token {
     FmRatio,
     FmDepth,
     Swing,
+    Cutoff,
+    Resonance,
+    Vibrato,
 
     // FM block keywords
     Fm,

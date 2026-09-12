@@ -1,0 +1,19 @@
+[package]
+name = "wilios-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+wilios-core = { path = "../wilios-core", features = ["serde"] }
+wilios-synth = { path = "../wilios-synth" }
+hound.workspace = true
+rustfft.workspace = true
+png.workspace = true
+serde.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+hound.workspace = true
+png.workspace = true

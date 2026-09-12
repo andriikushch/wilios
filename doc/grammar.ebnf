@@ -67,6 +67,9 @@ stmt            = rest_stmt
                 | fm_ratio_stmt
                 | fm_depth_stmt
                 | swing_stmt
+                | cutoff_stmt
+                | resonance_stmt
+                | vibrato_stmt
                 | fm_block_stmt
                 | loop_stmt
                 | if_stmt
@@ -111,6 +114,15 @@ fm_depth_stmt   = "fm_depth" , numeric ;
    Applied to 8th-note pairs: on-beat (even slot) is lengthened, off-beat shortened.
    Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. *)
 swing_stmt      = "swing" , numeric ;
+
+(* Per-track tone shaping — accept only literal numeric values (like the legacy
+   FM statements). `cutoff` is a resonant low-pass cutoff in Hz (default 20000,
+   i.e. open); `resonance` is 0..1 (default 0). `vibrato` adds a sine LFO to the
+   pitch: depth in cents, rate in Hz (both default 0 = off). Negative values are
+   a runtime error; out-of-range values are clamped by the synth. *)
+cutoff_stmt     = "cutoff" , numeric ;
+resonance_stmt  = "resonance" , numeric ;
+vibrato_stmt    = "vibrato" , numeric , numeric ;   (* depth_cents , rate_hz *)
 
 (* Multi-operator FM block *)
 fm_block_stmt   = "fm" , "{" , { newline | fm_item } , "}" ;
@@ -288,7 +300,7 @@ comment         = "//" , { (* any character except newline *) } , newline ;
 
    Control:   track  global  loop  if  else  let  func  return
    Musical:   tempo  volume  pan   rest  time_signature
-   Synth:     wave   attack  decay  sustain  release  fm_ratio  fm_depth  swing
+   Synth:     wave  attack  decay  sustain  release  fm_ratio  fm_depth  swing  cutoff  resonance  vibrato
    FM block:  fm     op     algorithm  level  ratio
    Waveforms: sine   square  saw  tri
    Import:    import

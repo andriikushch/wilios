@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     lexer::{Lexer, Spanned, Token},
@@ -21,10 +21,88 @@ impl std::fmt::Display for ParseError {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+/// Why a candidate import path was rejected by [`resolve_import_path`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImportPathError {
+    NotWiliosExtension,
+    NotRelative,
+    CanonicalizeFailed(String),
+    Escapes,
+}
+
+impl std::fmt::Display for ImportPathError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImportPathError::NotWiliosExtension => write!(f, "imports must be .wilios files"),
+            ImportPathError::NotRelative => write!(f, "import paths must be relative"),
+            ImportPathError::CanonicalizeFailed(e) => write!(f, "{e}"),
+            ImportPathError::Escapes => write!(f, "import escapes the project directory"),
+        }
+    }
+}
+
+/// The security-sensitive core of import resolution, shared by the normal
+/// recursive parser (`Parser::parse_import`) and `wilios_core::resolve`'s
+/// own import-graph walker — this must never be duplicated. Checks, in
+/// order: the path ends in `.wilios`; it's relative (not rooted, so it
+/// can't reach outside `base_dir` regardless of `..` traversal — see the
+/// `has_root()` note below); once joined against `base_dir` and
+/// canonicalized, it stays within `project_root`.
+///
+/// `has_root()` (in addition to `is_absolute()`) also catches paths like
+/// `/etc/passwd` on Windows, which are rooted to the current drive but not
+/// `is_absolute()` (that requires a drive letter or UNC prefix on Windows).
+pub fn resolve_import_path(
+    path_str: &str,
+    base_dir: Option<&Path>,
+    project_root: &Path,
+) -> Result<PathBuf, ImportPathError> {
+    let has_wilios_ext = Path::new(path_str)
+        .extension()
+        .is_some_and(|ext| ext == "wilios");
+    if !has_wilios_ext {
+        return Err(ImportPathError::NotWiliosExtension);
+    }
+
+    let import_path = PathBuf::from(path_str);
+    if import_path.is_absolute() || import_path.has_root() {
+        return Err(ImportPathError::NotRelative);
+    }
+
+    let path = match base_dir {
+        Some(base) => base.join(path_str),
+        None => PathBuf::from(path_str),
+    };
+
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| ImportPathError::CanonicalizeFailed(e.to_string()))?;
+
+    if !canonical.starts_with(project_root) {
+        return Err(ImportPathError::Escapes);
+    }
+
+    Ok(canonical)
+}
+
+#[derive(Debug, Clone)]
 pub struct TrackAst {
     pub id: usize,
+    /// Source line of this track's first `track N` declaration — used for
+    /// the `track-produces-no-events` lint's span (see `wilios_core::resolve`).
+    /// Reopened `track N { ... }` blocks and diamond-imported duplicates
+    /// keep the earliest-seen line. Diagnostic-only (unlike `Duration.line`,
+    /// nothing at runtime reads it), so — like `Expr::Var`'s position — it's
+    /// excluded from equality below to keep existing/future test fixtures
+    /// from having to track exact line numbers incidentally.
+    pub line: usize,
     pub statements: Vec<Stmt>,
+}
+
+impl PartialEq for TrackAst {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.statements == other.statements
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -41,6 +119,13 @@ pub struct Parser {
     last_pos: (usize, usize),
     base_dir: Option<PathBuf>,
     loaded: HashSet<PathBuf>,
+    /// When true, `import "..."` statements are parsed syntactically only
+    /// (see `parse_import_shallow`) — no filesystem access, no recursion —
+    /// and surface as `Stmt::Import` for a caller (namely `wilios_core::resolve`)
+    /// to resolve and walk itself. Default `false` for every existing
+    /// constructor/caller, so this is a zero-behavior-change addition for
+    /// the CLI/interpreter's normal recursive-import parsing.
+    shallow_imports: bool,
 }
 
 impl Parser {
@@ -65,7 +150,20 @@ impl Parser {
             last_pos: (1, 1),
             base_dir,
             loaded,
+            shallow_imports: false,
         }
+    }
+
+    /// Like [`Parser::new`], but `import` statements are recorded as
+    /// `Stmt::Import` rather than resolved/recursed into. Used by
+    /// `wilios_core::resolve` to drive its own import-graph walk (with
+    /// per-file diagnostics and `files_validated` accounting) while still
+    /// sharing the same syntax and the same [`resolve_import_path`] safety
+    /// checks the normal recursive parser uses.
+    pub fn new_shallow(tokens: Vec<Spanned<Token>>, base_dir: Option<PathBuf>) -> Self {
+        let mut parser = Self::new_with_context(tokens, base_dir, HashSet::new());
+        parser.shallow_imports = true;
+        parser
     }
 
     fn next(&mut self) {
@@ -139,6 +237,29 @@ impl Parser {
         while self.current_token() != Some(&Token::EOF) {
             // Handle import at top level
             if self.current_token() == Some(&Token::Import) {
+                if self.shallow_imports {
+                    let stmt = self.parse_import_shallow()?;
+                    match self.current_scope {
+                        None => program.global_stmts.push(stmt),
+                        Some(track_id) => {
+                            let track = program.tracks.iter_mut().find(|t| t.id == track_id);
+                            if let Some(t) = track {
+                                t.statements.push(stmt);
+                            } else {
+                                program.tracks.push(TrackAst {
+                                    id: track_id,
+                                    line: 0,
+                                    statements: vec![stmt],
+                                });
+                            }
+                        }
+                    }
+                    while self.current_token() == Some(&Token::Newline) {
+                        self.next();
+                    }
+                    continue;
+                }
+
                 let imported = self.parse_import()?;
                 program.global_stmts.extend(imported.global_stmts);
                 for track in imported.tracks {
@@ -157,7 +278,16 @@ impl Parser {
 
             match self.parse_statement()? {
                 Some(stmt) => match stmt {
-                    Stmt::Track(id) => self.current_scope = Some(id),
+                    Stmt::Track { id, line } => {
+                        self.current_scope = Some(id);
+                        if !program.tracks.iter().any(|t| t.id == id) {
+                            program.tracks.push(TrackAst {
+                                id,
+                                line,
+                                statements: vec![],
+                            });
+                        }
+                    }
                     Stmt::Global => self.current_scope = None,
                     _ => match self.current_scope {
                         None => program.global_stmts.push(stmt),
@@ -169,6 +299,7 @@ impl Parser {
                             } else {
                                 program.tracks.push(TrackAst {
                                     id: track_id,
+                                    line: 0,
                                     statements: vec![stmt],
                                 });
                             }
@@ -209,6 +340,9 @@ impl Parser {
             Some(Token::FmRatio) => self.parse_fm_param(Token::FmRatio).map(Some),
             Some(Token::FmDepth) => self.parse_fm_param(Token::FmDepth).map(Some),
             Some(Token::Swing) => self.parse_swing().map(Some),
+            Some(Token::Cutoff) => self.parse_tone_param(Token::Cutoff).map(Some),
+            Some(Token::Resonance) => self.parse_tone_param(Token::Resonance).map(Some),
+            Some(Token::Vibrato) => self.parse_vibrato().map(Some),
             Some(Token::Fm) => self.parse_fm_block().map(Some),
 
             Some(Token::Loop) => self.parse_loop().map(Some),
@@ -241,12 +375,13 @@ impl Parser {
     // =========================================================
 
     fn parse_track(&mut self) -> Result<Stmt, ParseError> {
+        let line = self.current_pos().0;
         self.next();
         match self.current_token() {
             Some(Token::Int(v)) => {
                 let id = *v as usize;
                 self.next();
-                Ok(Stmt::Track(id))
+                Ok(Stmt::Track { id, line })
             }
             _ => Err(self.make_error("expected integer after `track`")),
         }
@@ -421,10 +556,11 @@ impl Parser {
     }
 
     fn parse_call_stmt(&mut self) -> Result<Stmt, ParseError> {
+        let (line, col) = self.current_pos();
         let name = self.parse_ident()?;
         let args = self.parse_arg_list()?;
         Ok(Stmt::Call {
-            callee: Expr::Var(name),
+            callee: Expr::Var { name, line, col },
             args,
         })
     }
@@ -444,52 +580,14 @@ impl Parser {
         };
         self.next(); // consume string literal
 
-        // Only .wilios files may be imported
-        let has_wilios_ext = std::path::Path::new(&path_str)
-            .extension()
-            .is_some_and(|ext| ext == "wilios");
-        if !has_wilios_ext {
-            return Err(self.make_error(format!(
-                "cannot resolve import '{}': imports must be .wilios files",
-                path_str
-            )));
-        }
-
-        // Import paths must be relative — absolute paths would let a script
-        // reach any file on disk regardless of base_dir. `has_root()` also
-        // catches paths like `/etc/passwd` on Windows, which are rooted to
-        // the current drive but not `is_absolute()` (that requires a drive
-        // letter or UNC prefix on Windows).
-        let import_path = PathBuf::from(&path_str);
-        if import_path.is_absolute() || import_path.has_root() {
-            return Err(self.make_error(format!(
-                "cannot resolve import '{}': import paths must be relative",
-                path_str
-            )));
-        }
-
-        // Resolve path relative to base_dir
-        let path = if let Some(ref base) = self.base_dir {
-            base.join(&path_str)
-        } else {
-            PathBuf::from(&path_str)
-        };
-
-        let canonical = path
-            .canonicalize()
-            .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
-
         // Confine resolved imports to the project directory (the process's
         // current working directory) so `..` traversal can't escape it.
         let project_root = std::env::current_dir()
             .and_then(|dir| dir.canonicalize())
             .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
-        if !canonical.starts_with(&project_root) {
-            return Err(self.make_error(format!(
-                "cannot resolve import '{}': import escapes the project directory",
-                path_str
-            )));
-        }
+
+        let canonical = resolve_import_path(&path_str, self.base_dir.as_deref(), &project_root)
+            .map_err(|e| self.make_error(format!("cannot resolve import '{}': {}", path_str, e)))?;
 
         // Skip already-loaded files (circular import protection)
         if self.loaded.contains(&canonical) {
@@ -513,6 +611,38 @@ impl Parser {
             .map_err(|e| self.make_error(format!("parse error in '{}': {}", path_str, e)))?;
 
         Ok(imported)
+    }
+
+    /// Syntax-only counterpart to [`parse_import`] used when
+    /// `shallow_imports` is set: consumes `import "literal.wilios"` and
+    /// checks it's a `.wilios`-suffixed string literal, but never touches
+    /// disk or recurses. Returns `Stmt::Import` for the caller to resolve
+    /// and walk itself (see `wilios_core::resolve::imports`).
+    fn parse_import_shallow(&mut self) -> Result<Stmt, ParseError> {
+        let (line, col) = self.current_pos();
+        self.next(); // consume `import`
+
+        let path_str = match self.current_token() {
+            Some(Token::StringLit(s)) => s.clone(),
+            _ => return Err(self.make_error("expected string literal after `import`")),
+        };
+        self.next(); // consume string literal
+
+        let has_wilios_ext = std::path::Path::new(&path_str)
+            .extension()
+            .is_some_and(|ext| ext == "wilios");
+        if !has_wilios_ext {
+            return Err(self.make_error(format!(
+                "cannot resolve import '{}': imports must be .wilios files",
+                path_str
+            )));
+        }
+
+        Ok(Stmt::Import {
+            path: path_str,
+            line,
+            col,
+        })
     }
 
     // =========================================================
@@ -596,6 +726,7 @@ impl Parser {
     }
 
     fn nud(&mut self) -> Result<Expr, ParseError> {
+        let (line, col) = self.current_pos();
         let tok = match self.current_token().cloned() {
             Some(t) => t,
             None => return Err(self.make_error("unexpected end of input in expression")),
@@ -606,7 +737,11 @@ impl Parser {
             Token::Int(n) => Ok(Expr::Int(n)),
             Token::Float(f) => Ok(Expr::Float(f)),
             Token::Bool(b) => Ok(Expr::Bool(b)),
-            Token::Ident(s) => Ok(Expr::Var(Ident(s))),
+            Token::Ident(s) => Ok(Expr::Var {
+                name: Ident(s),
+                line,
+                col,
+            }),
 
             Token::Pitch {
                 letter,
@@ -758,6 +893,53 @@ impl Parser {
             _ => return Err(self.make_error("expected numeric value after `swing`")),
         };
         Ok(Stmt::Swing(value))
+    }
+
+    /// Reads one literal number (int or float, stored as `Expr::Float`) after a
+    /// tone-shaping keyword. Same literal-only rule as `fm_ratio`/`fm_depth`.
+    fn parse_tone_param(&mut self, keyword: Token) -> Result<Stmt, ParseError> {
+        self.next(); // consume keyword
+        let value = self.expect_tone_number(match keyword {
+            Token::Cutoff => "cutoff",
+            Token::Resonance => "resonance",
+            _ => unreachable!(),
+        })?;
+        match keyword {
+            Token::Cutoff => Ok(Stmt::Cutoff(value)),
+            Token::Resonance => Ok(Stmt::Resonance(value)),
+            _ => unreachable!(),
+        }
+    }
+
+    fn parse_vibrato(&mut self) -> Result<Stmt, ParseError> {
+        self.next(); // consume `vibrato`
+        let depth = self.expect_tone_number("vibrato")?;
+        let rate = self.expect_tone_number("vibrato")?;
+        Ok(Stmt::Vibrato { depth, rate })
+    }
+
+    fn expect_tone_number(&mut self, keyword: &str) -> Result<Expr, ParseError> {
+        // Allow a leading `-` so a negative value parses and is then reported as
+        // a clean runtime error (like `swing`'s out-of-range handling), rather
+        // than a bare parse error.
+        let neg = if self.current_token() == Some(&Token::Minus) {
+            self.next();
+            true
+        } else {
+            false
+        };
+        let mag = match self.current_token().cloned() {
+            Some(Token::Float(f)) => {
+                self.next();
+                f
+            }
+            Some(Token::Int(n)) => {
+                self.next();
+                n as f32
+            }
+            _ => return Err(self.make_error(format!("expected numeric value after `{keyword}`"))),
+        };
+        Ok(Expr::Float(if neg { -mag } else { mag }))
     }
 
     fn parse_fm_block(&mut self) -> Result<Stmt, ParseError> {
@@ -987,7 +1169,12 @@ impl Parser {
         // Path B: <ident_or_int> / <ident_or_int>
         let beats = match self.current_token() {
             Some(Token::Ident(name)) => {
-                let e = Expr::Var(Ident(name.clone()));
+                let (var_line, var_col) = self.current_pos();
+                let e = Expr::Var {
+                    name: Ident(name.clone()),
+                    line: var_line,
+                    col: var_col,
+                };
                 self.next();
                 e
             }
@@ -1004,7 +1191,12 @@ impl Parser {
         self.next(); // consume /
         let division = match self.current_token() {
             Some(Token::Ident(name)) => {
-                let e = Expr::Var(Ident(name.clone()));
+                let (var_line, var_col) = self.current_pos();
+                let e = Expr::Var {
+                    name: Ident(name.clone()),
+                    line: var_line,
+                    col: var_col,
+                };
                 self.next();
                 e
             }

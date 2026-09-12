@@ -1,0 +1,49 @@
+// ============================================================
+//  "Shelf Life, Bossa" — 8 bars of bossa nova in A minor, assembled
+//  from the jazz-composer idiom library.   DEMO
+//
+//  Style : bossa nova   Tempo : 150     Feel : swing 50 (STRAIGHT)
+//  Meter : 4/4          Form  : 8-bar section (one Am7 centre)
+//  Band  : epiano lead + root/5th bass + epiano comp + soft kit
+//
+//  Run it:
+//    cargo run -- dump   examples/bossa_from_lib.wilios --format roll
+//    cargo run -- render examples/bossa_from_lib.wilios -o /tmp/bn.wav
+//
+//  swing 50 on every track — bossa does not swing.
+// ============================================================
+
+import "../skills/jazz-composer/lib/bossa.wilios"
+
+// ---- LEAD: a legato 4-bar phrase, stated twice.
+track 1
+tempo 150
+swing 50
+volume 84
+epiano()
+bossa_melody_frag(A4)
+bossa_melody_frag(A4)
+
+// ---- BASS: root (A) and fifth (E), the "1 and 3" cell.
+track 2
+tempo 150
+swing 50
+volume 100
+bass()
+bossa_bass_n(A1, E2, 4)
+
+// ---- COMP: an Am7 rootless voicing (A C E G) on the clave figure.
+track 3
+tempo 150
+swing 50
+volume 60
+pan 25
+epiano()
+bossa_comp_n(<A3, C4, E4, G4>, 4)
+
+// ---- DRUMS: straight bossa kick + cross-stick.
+track 4
+tempo 150
+swing 50
+volume 44
+kit_bossa(8)

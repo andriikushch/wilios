@@ -1,0 +1,44 @@
+// ============================================================
+//  bebop.wilios — bebop style pack (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/bebop.wilios"
+//  (pulls in licks / comp / grooves and the FM presets transitively)
+//
+//  STYLE NOTES  (copy the settings into every track)
+//    Tempo   180-300      swing   60-66        meter  4/4
+//    Presets lead brass ; bass (or upright) ; drums ride + kick/snare
+//    Form    32-bar AABA (rhythm changes) or 12-bar blues; head-solos-head
+//    Devices fast harmonic motion (two chords/bar), continuous 8th-note
+//            lines, chromatic approach tones, enclosures, arpeggios
+//            through the 7th/9th, phrases that start and end off the beat
+//
+//  Full model: examples/bebop_trio.wilios . Demo: examples/bebop_from_lib.wilios
+// ============================================================
+
+import "licks.wilios"
+import "comp.wilios"
+import "grooves.wilios"
+
+// --- bebop_a_line(key): an 8-bar A-section line, `key` = the tonic pitch.
+//     Built from the ii-V-I and turnaround sub-phrases in licks.wilios —
+//     this is the "phrase out of sub-phrases" move.
+let bebop_a_line = func(key) {
+    ii_v_i_maj(key)
+    turnaround_maj(key)
+    ii_v_i_maj(key)
+    turnaround_maj(key)
+}
+
+// --- bebop_a_bass(key, cycles): a walking bass over the rhythm-changes A
+//     cadence  | I | VI7 | ii7 | V7 |  — one bar per chord, root / 3rd /
+//     5th / chromatic-approach. `cycles` = how many 4-bar cycles.
+let bebop_a_bass = func(key, cycles) {
+    let i = 0
+    loop (i < cycles) {
+        i = i + 1
+        walk_bar(key, transpose(key, 4), transpose(key, 7), transpose(key, 8))              // I   -> VI7
+        walk_bar(transpose(key, 9), transpose(key, 6), transpose(key, 4), transpose(key, 3)) // VI7 -> ii7
+        walk_bar(transpose(key, 2), transpose(key, 5), transpose(key, 9), transpose(key, 8)) // ii7 -> V7
+        walk_bar(transpose(key, 7), transpose(key, 11), transpose(key, 2), transpose(key, 1)) // V7 -> I
+    }
+}

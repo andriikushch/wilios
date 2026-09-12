@@ -78,6 +78,12 @@ pub enum EventKind {
         fm_ratio: f32,
         fm_depth: f32,
         fm_block: Option<FmBlockConfig>,
+        /// Per-track resonant low-pass: cutoff in Hz, resonance 0..1.
+        cutoff_hz: f32,
+        resonance: f32,
+        /// Per-track vibrato: LFO depth in cents, rate in Hz (0 = off).
+        vibrato_depth_cents: f32,
+        vibrato_rate_hz: f32,
         time_signature: TimeSignature,
     },
 }
