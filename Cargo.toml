@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/wilios-core",
     "crates/wilios-synth",
+    "crates/wilios-render",
     "crates/wilios-cli",
     "crates/wilios-mcp",
 ]
@@ -17,9 +18,15 @@ repository = "https://github.com/andriikushch/wilios"
 
 [workspace.dependencies]
 rand = "0.10"
+base64 = "0.22"
 cpal = "0.18"
+hound = "3"
+midly = "0.5"
 num-rational = "0.4"
+png = "0.17"
+rustfft = "6"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

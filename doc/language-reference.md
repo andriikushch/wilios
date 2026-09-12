@@ -126,7 +126,7 @@ wilios has eight runtime value types:
 - **Int** and **Float** are distinct. Arithmetic between them is not implicitly coerced — use explicit literals of the correct type.
 - **Pitch** and **Chord** are first-class values that can be stored in variables, passed to functions, and returned.
 - **Array** elements can be any value type, including pitches and chords. Arrays are indexed from zero.
-- **Func** values are closures that capture their definition-time environment.
+- **Func** values are first-class: they can be stored in variables, passed as arguments, returned, and called. A body resolves names against the environment in effect where it is **called** (see [Function Scope](#function-scope)).
 
 ---
 
@@ -405,6 +405,27 @@ time_signature 6/8    // overrides the global default for this track
 <G3> 1/4
 ```
 
+#### Tone Filter and Vibrato
+
+Per-track sound shaping applied after FM synthesis. Each takes literal numbers
+only (like `fm_ratio`/`fm_depth`); negative values are a runtime error.
+
+```
+cutoff  numeric            // resonant low-pass cutoff, Hz (default 20000 = open)
+resonance numeric          // 0.0 .. 1.0, low-pass resonance (default 0.0)
+vibrato depth_cents rate_hz // sine pitch LFO; depth 0 = off (default)
+```
+
+```wilios
+wave saw
+cutoff 1800
+resonance 0.2
+vibrato 20 5      // ~5 Hz, 20-cent vibrato
+<C3> 1/2
+```
+
+See [synthesis.md — Tone Filter and Vibrato](synthesis.md#9-tone-filter-and-vibrato) for details.
+
 ---
 
 ### 5.3 Variables
@@ -557,7 +578,7 @@ let apply = func(f, x) {
 }
 ```
 
-Parameters and the function body are lexically scoped — the function captures its enclosing environment at definition time.
+A function body sees its own parameters (which shadow) layered on top of the environment in effect **where the call happens** — so it can call other top-level functions and the built-ins, and functions may recurse or be mutually recursive. Names bound inside a body (parameters, or a `let`) are discarded when the call returns. See [Function Scope](#function-scope).
 
 #### Return
 
@@ -896,7 +917,7 @@ Import statements must appear at the top level (not inside a block, loop, or fun
 
 ### Global Scope
 
-Statements written before any `track` keyword, and statements written after a `global` keyword, belong to global scope. Global statements are evaluated **once** at program startup, against a single shared context. The resulting state — variable/function bindings, and performance/synthesis parameters (`tempo`, `volume`, `pan`, `time_signature`, waveform, ADSR, FM, `swing`) — is **cloned** into every track's initial context.
+Statements written before any `track` keyword, and statements written after a `global` keyword, belong to global scope. Global statements are evaluated **once** at program startup, against a single shared context. The resulting state — variable/function bindings, and performance/synthesis parameters (`tempo`, `volume`, `pan`, `time_signature`, waveform, ADSR, FM, `swing`, `cutoff`, `resonance`, `vibrato`) — is **cloned** into every track's initial context.
 
 This means functions and variables defined globally are available in all tracks, and performance/synthesis parameters set globally act as the starting defaults for every track — each track can still override any of them locally.
 
@@ -935,7 +956,11 @@ There is no dynamic parent-scope lookup across tracks.
 
 ### Function Scope
 
-When a function is called, its execution frame captures the environment at the time of **definition** (lexical scoping). The function body executes with that captured environment. Mutations inside the function body (assignments) affect the track's current environment, not the capture. Parameters shadow any outer variable with the same name.
+When a function is called, the interpreter takes the environment in effect **at the call site**, layers the parameters on top (they shadow any outer name), and runs the body against that. So a body can reference other top-level functions, globals, and the built-ins, and functions can recurse or be mutually recursive.
+
+Anything the body binds — its parameters, or a `let` — is discarded when the call returns; only the body's side effects (emitted notes, `print` output) persist. Because resolution is against the *call-site* environment rather than the definition site, a helper's behaviour can depend on what is in scope where it is invoked (see [Known Limitations](#14-known-limitations)).
+
+Runaway recursion in expression position (`let y = f()` where `f` calls itself with no base case) is capped at a fixed depth and reported as a runtime error rather than crashing.
 
 ---
 
@@ -981,7 +1006,7 @@ The following identifiers are reserved and **cannot** be used as variable or fun
 | Variables / functions | `let` `func` |
 | Scope | `track` `global` |
 | Musical | `tempo` `volume` `pan` `rest` `time_signature` |
-| Synthesis | `wave` `attack` `decay` `sustain` `release` `fm_ratio` `fm_depth` `swing` |
+| Synthesis | `wave` `attack` `decay` `sustain` `release` `fm_ratio` `fm_depth` `swing` `cutoff` `resonance` `vibrato` |
 | FM block | `fm` `op` `algorithm` `level` `ratio` |
 | Waveforms | `sine` `square` `saw` `tri` |
 | Import | `import` |
@@ -1038,3 +1063,7 @@ Waveform, ADSR envelope, and FM parameters are per-track. All notes on a track s
 ### No Multi-line Statements
 
 Every statement must fit on a single line. There is no line-continuation syntax.
+
+### Function Scoping Is Call-Site (Dynamic), Not Lexical
+
+A function body resolves names against whatever is in scope where it is **called**, not where it is defined (see [Function Scope](#function-scope)). Defining functions at global scope — as the presets and every example do — makes this invisible, but a track-local `let step = …` will shadow a global `func step` for any function invoked from that track. Keep helper and phrase functions at global scope, and give track-local variables names that do not collide with them.

@@ -5,13 +5,25 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+name = "wilios_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "wilios"
 path = "src/main.rs"
 
 [dependencies]
-wilios-core = { path = "../wilios-core" }
+wilios-core = { path = "../wilios-core", features = ["serde"] }
 wilios-synth = { path = "../wilios-synth" }
+wilios-render = { path = "../wilios-render" }
 cpal.workspace = true
+midly.workspace = true
+serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[dev-dependencies]
+hound.workspace = true
+midly.workspace = true
+serde_json.workspace = true

@@ -8,7 +8,15 @@ repository.workspace = true
 [dependencies]
 rand.workspace = true
 num-rational.workspace = true
+serde = { workspace = true, optional = true }
 tracing.workspace = true
+
+[features]
+# Off by default: `wilios-core` is otherwise serde-free (see
+# `src/diagnostics/mod.rs`). Enables `wilios_core::dump`, the serializable
+# event-timeline snapshot shared by `wilios dump` and the `dump_events` MCP
+# tool.
+serde = ["dep:serde"]
 
 [dev-dependencies]
 proptest = "1"

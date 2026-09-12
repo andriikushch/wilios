@@ -194,6 +194,9 @@ fn lex_keywords_reserved() {
         "release",
         "fm_ratio",
         "fm_depth",
+        "cutoff",
+        "resonance",
+        "vibrato",
         "fm",
         "op",
         "algorithm",
@@ -413,6 +416,28 @@ fn stmt_fm_ratio_and_depth() {
 #[test]
 fn stmt_fm_ratio_rejects_non_numeric() {
     parse_err("track 0\nfm_ratio x");
+}
+
+#[test]
+fn stmt_tone_filter_and_vibrato_parse() {
+    let stmts = track_stmts("track 0\ncutoff 1800\nresonance 0.3\nvibrato 20 5.5", 0);
+    assert!(matches!(stmts[0], Stmt::Cutoff(_)));
+    assert!(matches!(stmts[1], Stmt::Resonance(_)));
+    assert!(matches!(stmts[2], Stmt::Vibrato { .. }));
+}
+
+#[test]
+fn stmt_tone_params_accept_int_and_float() {
+    let stmts = track_stmts("track 0\ncutoff 2000\nvibrato 25 6", 0);
+    assert!(matches!(stmts[0], Stmt::Cutoff(_)));
+    assert!(matches!(stmts[1], Stmt::Vibrato { .. }));
+}
+
+#[test]
+fn stmt_tone_params_reject_bad_forms() {
+    parse_err("track 0\ncutoff x"); // non-numeric
+    parse_err("track 0\nvibrato 5"); // vibrato needs two numbers
+    parse_err("track 0\nresonance"); // missing value
 }
 
 // ---------------------------------------------------------------------------
@@ -864,7 +889,7 @@ fn expr_chord_in_let() {
 fn duration_variable_beats() {
     let _stmts = global_stmts("let n = 1\ntrack 0\nrest n/4");
     if let Stmt::Rest { duration } = &track_stmts("let n = 1\ntrack 0\nrest n/4", 0)[0] {
-        assert!(matches!(duration.beats, Expr::Var(_)));
+        assert!(matches!(duration.beats, Expr::Var { .. }));
     }
 }
 
@@ -1067,7 +1092,11 @@ fn array_index_read_expr() {
         vec![Stmt::Let {
             name: Ident("x".into()),
             value: Expr::Index {
-                array: Box::new(Expr::Var(Ident("a".into()))),
+                array: Box::new(Expr::Var {
+                    name: Ident("a".into()),
+                    line: 0,
+                    col: 0,
+                }),
                 index: Box::new(Expr::Int(0)),
             },
         }]
@@ -1095,8 +1124,16 @@ fn array_index_with_variable() {
         vec![Stmt::Let {
             name: Ident("x".into()),
             value: Expr::Index {
-                array: Box::new(Expr::Var(Ident("arr".into()))),
-                index: Box::new(Expr::Var(Ident("i".into()))),
+                array: Box::new(Expr::Var {
+                    name: Ident("arr".into()),
+                    line: 0,
+                    col: 0,
+                }),
+                index: Box::new(Expr::Var {
+                    name: Ident("i".into()),
+                    line: 0,
+                    col: 0,
+                }),
             },
         }]
     );
@@ -1112,12 +1149,20 @@ fn array_index_in_arithmetic() {
             name: Ident("x".into()),
             value: Expr::Binary {
                 left: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("a".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("a".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(0)),
                 }),
                 op: BinaryOp::Add,
                 right: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("a".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("a".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(1)),
                 }),
             },
@@ -1133,9 +1178,17 @@ fn array_nested_index() {
         vec![Stmt::Let {
             name: Ident("x".into()),
             value: Expr::Index {
-                array: Box::new(Expr::Var(Ident("a".into()))),
+                array: Box::new(Expr::Var {
+                    name: Ident("a".into()),
+                    line: 0,
+                    col: 0,
+                }),
                 index: Box::new(Expr::Index {
-                    array: Box::new(Expr::Var(Ident("b".into()))),
+                    array: Box::new(Expr::Var {
+                        name: Ident("b".into()),
+                        line: 0,
+                        col: 0,
+                    }),
                     index: Box::new(Expr::Int(0)),
                 }),
             },

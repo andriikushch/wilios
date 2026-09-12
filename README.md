@@ -24,6 +24,9 @@ cargo run
 
 # Run the example composition
 cargo run -- examples/example_1.wilios
+
+# Render to a WAV file instead of playing (no audio device needed)
+cargo run -- render examples/example_1.wilios -o out.wav
 ```
 
 ## Quick Example
@@ -54,6 +57,43 @@ loop (j < 8) {
     rest 1/4
 }
 ```
+
+## CLI
+
+```bash
+wilios <file>                          # play on the default audio device (press Enter to quit)
+wilios play <file>                     # same, explicit
+wilios render <file> -o OUT.wav [opts] # render offline to a WAV file (no audio device)
+wilios dump <file> [opts]              # print the per-track event timeline to stdout
+```
+
+### `render` options
+
+| Option                | Description                                                          |
+| --------------------- | ------------------------------------------------------------------ |
+| `-o`, `--output PATH` | output WAV path (**required**)                                     |
+| `--duration SECONDS`  | render exactly this long                                           |
+| `--sample-rate HZ`    | output sample rate (default `44100`)                               |
+
+Output is 16-bit stereo PCM. The file is written atomically — a failed render leaves no partial file.
+
+### `dump` options
+
+| Option                | Description                                                          |
+| --------------------- | ------------------------------------------------------------------ |
+| `--format json\|text` | output format (default `text`)                                     |
+| `--duration SECONDS`  | dump exactly this much; required for endless-loop pieces           |
+
+Prints, per track, every scheduled note: onset (`at_ms` and exact `at_beats`), pitch
+spelling and frequency, duration, velocity, pan, waveform, ADSR, and full FM config
+(JSON carries every field; text is a scannable column subset). Nothing is played or
+rendered.
+
+**Endless loops:** a `.wilios` program can run forever (`loop (true) { ... }`). Without
+`--duration`, `render`/`dump` stop when every track finishes; if a piece has not finished
+after 600 s it is treated as non-terminating and the command **exits with an error and
+writes no output** — pass `--duration` for looping pieces (`dump --duration` still emits
+the bounded timeline, marked `finished: false`).
 
 ## Language at a Glance
 
@@ -96,17 +136,22 @@ Time signature defaults to `4/4`; set it in `global` scope as a default for ever
 
 Import with `import "../lib/lib.wilios"` to access these FM synthesis presets:
 
-| Function    | Description                    |
-| ----------- | ------------------------------ |
-| `epiano()`  | Electric piano                 |
-| `brass()`   | Brass stab                     |
-| `bass()`    | Bass synth                     |
-| `marimba()` | Marimba                        |
-| `strings()` | String pad                     |
-| `kick()`    | Bass drum — play at `<B1>`     |
-| `snare()`   | Snare drum — play at `<A3>`    |
-| `hihat_c()` | Closed hi-hat — play at `<F5>` |
-| `hihat_o()` | Open hi-hat — play at `<F5>`   |
+| Function       | Description                        |
+| -------------- | --------------------------------- |
+| `epiano()`     | Electric piano                    |
+| `brass()`      | Brass stab                        |
+| `trumpet()`    | Sustained brass lead with vibrato |
+| `bass()`       | Bass synth                        |
+| `upright()`    | Fingered acoustic bass            |
+| `marimba()`    | Marimba                           |
+| `strings()`    | String pad                        |
+| `comp_piano()` | Sustaining comping keyboard       |
+| `kick()`       | Bass drum — play at `<B1>`        |
+| `snare()`      | Snare drum — play at `<A3>`       |
+| `hihat_c()`    | Closed hi-hat — play at `<F5>`    |
+| `hihat_o()`    | Open hi-hat — play at `<F5>`      |
+| `ride()`       | Ride cymbal — play at `<F5>`      |
+| `brushes()`    | Brush swish — play at `<A3>`      |
 
 ## VS Code Extension
 
@@ -141,8 +186,11 @@ crates/
     src/interpreter/  Pull-based execution engine, track runners
     tests/            Integration tests, property-based tests
   wilios-synth/   FM synthesis + voice mixer (Voice, Envelope, Mixer/limiter)
-  wilios-cli/     cpal audio engine + CLI arg handling (binary: `wilios`)
-  wilios-mcp/     Placeholder crate (not implemented yet)
+  wilios-cli/     CLI (binary: `wilios`) — device-independent pipeline core plus three
+                  consumers: `play` (cpal), `render` (offline WAV via hound), `dump`
+                  (event timeline as JSON/text)
+  wilios-mcp/     MCP server exposing wilios docs/examples, stdlib-lookup tools,
+                  `validate`, and `dump_events` (per-track event timeline)
 examples/         Example .wilios compositions
 lib/              Standard FM preset library (lib.wilios)
 doc/              Language reference, stdlib docs, synthesis notes, grammar

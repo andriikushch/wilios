@@ -1,0 +1,83 @@
+// ============================================================
+//  grooves.wilios — drum + bass patterns (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/grooves.wilios"
+//    (this file itself imports ../../../lib/lib.wilios for the presets)
+//
+//  Drum helpers take a bar count and run a bounded loop; call one as the
+//  whole body of a drum track. Bass helpers take pitches and emit one bar
+//  (or the noted number of bars). Statement position only; nothing is
+//  returned. Every helper re-selects its presets, so give the kit its own
+//  track(s).
+//
+//      swing_ride(32)                    // 32 bars of ride, one track
+//      kit_swing(32)                     // kick+snare, a second track
+//      walk_bar(<F1>, <A1>, <C2>, <E1>)  // one walking-bass bar
+// ============================================================
+
+import "../../../lib/lib.wilios"
+
+// --- swing_ride(bars): the "spang-a-lang" ride pattern on <F5>, on the
+//     `ride` preset (a real cymbal wash). One track to itself.
+let swing_ride = func(bars) {
+    ride()
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        <F5> 1/4  <F5> 1/8 <F5> 1/8  <F5> 1/4  <F5> 1/8 <F5> 1/8
+    }
+}
+
+// --- kit_swing(bars): kick on 1 & 3, snare on 2 & 4. The one-bar kit
+//     pattern the older examples had to inline — now a real helper.
+let kit_swing = func(bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        kick()  <B1> 1/4   snare() <A3> 1/4   kick() <B1> 1/4   snare() <A3> 1/4
+    }
+}
+
+// --- kit_bossa(bars): straight (do NOT swing) — kick on 1 and the 'and'
+//     of 2, cross-stick snare on 3.
+let kit_bossa = func(bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        kick() <B1> 1/4   rest 1/8 kick() <B1> 1/8   snare() <A3> 1/4   rest 1/4
+    }
+}
+
+// --- kit_shuffle(bars): every 8th on the kit, kick/snare backbeat — with
+//     `swing` 66-72 on the track this is a shuffle.
+let kit_shuffle = func(bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        kick() <B1> 1/8 hihat_c() <F5> 1/8   snare() <A3> 1/8 hihat_c() <F5> 1/8
+        kick() <B1> 1/8 hihat_c() <F5> 1/8   snare() <A3> 1/8 hihat_c() <F5> 1/8
+    }
+}
+
+// --- walk_bar(n1, n2, n3, n4): one bar of walking bass from four pitches
+//     (root / chord tone / chord tone / approach to the next root).
+//     Call bass() once on the track first.
+let walk_bar = func(n1, n2, n3, n4) {
+    <n1> 1/4 <n2> 1/4 <n3> 1/4 <n4> 1/4
+}
+
+// --- two_feel(root, fifth, bars): half-note root then fifth, `bars` bars.
+let two_feel = func(root, fifth, bars) {
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        <root> 1/2 <fifth> 1/2
+    }
+}
+
+// --- bossa_bass2(root, fifth): the two-bar "1 and 3" bossa cell (root on
+//     1, fifth on 3), straight.
+let bossa_bass2 = func(root, fifth) {
+    <root> 1/4 rest 1/4 <fifth> 1/4 rest 1/4
+    <root> 1/4 rest 1/4 <fifth> 1/4 rest 1/4
+}

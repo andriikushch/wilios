@@ -72,6 +72,102 @@ fn interpreter_function_call_emits_note() {
     assert_eq!(events.len(), 1);
 }
 
+// ---- func-calls-func / recursion ----
+
+#[test]
+fn interpreter_func_calls_sibling_func() {
+    // A phrase built from a sub-phrase: `outer` calls the top-level `inner`.
+    let src =
+        "let inner = func() { <C4> 1/4 }\nlet outer = func() { inner() inner() }\ntrack 1\nouter()";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    for ev in &events {
+        let EventKind::Note { pitch, .. } = &ev.kind;
+        assert_eq!(pitch.letter, 'C');
+        assert_eq!(pitch.octave, 4);
+    }
+}
+
+#[test]
+fn interpreter_func_body_can_call_builtin() {
+    // `print` is a builtin; previously invisible inside a func body.
+    let src = "let f = func() { print(1) <C4> 1/4 }\ntrack 1\nf()";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 1);
+}
+
+#[test]
+fn interpreter_func_self_recursion_terminates() {
+    // Recursion via the statement path, with a param-driven base case.
+    let src =
+        "let n = 3\nlet down = func(k) { if (k > 0) { <C4> 1/4 down(k - 1) } }\ntrack 1\ndown(n)";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 3);
+}
+
+#[test]
+fn interpreter_func_mutual_recursion() {
+    // `ping` and `pong` are defined at global scope and call each other.
+    let src = concat!(
+        "let ping = func(k) { if (k > 0) { <C4> 1/8 pong(k - 1) } }\n",
+        "let pong = func(k) { if (k > 0) { <E4> 1/8 ping(k - 1) } }\n",
+        "track 1\nping(4)"
+    );
+    let events = interp_events(src);
+    assert_eq!(events.len(), 4);
+    let letters: Vec<char> = events
+        .iter()
+        .map(|ev| {
+            let EventKind::Note { pitch, .. } = &ev.kind;
+            pitch.letter
+        })
+        .collect();
+    assert_eq!(letters, vec!['C', 'E', 'C', 'E']);
+}
+
+#[test]
+fn interpreter_func_expr_call_sees_sibling_func() {
+    // Expression-position call: `wrap` returns the result of the top-level
+    // `base`. Previously `base` was undefined inside `wrap`.
+    let src = "let base = func() { return 7 }\nlet wrap = func() { return base() }\nlet y = wrap()";
+    run(src);
+}
+
+#[test]
+fn interpreter_func_runaway_recursion_is_a_clean_error() {
+    // Unbounded expression-path recursion hits MAX_CALL_DEPTH and returns a
+    // RuntimeError instead of overflowing the native stack.
+
+    // Called from a global `let` — surfaces from `Interpreter::new`.
+    let src = "let boom = func() { return boom() }\nlet y = boom()";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    match Interpreter::new(program) {
+        Err(e) => assert!(e.0.contains("call stack too deep"), "got: {}", e.0),
+        Ok(_) => panic!("expected a runtime error for unbounded recursion"),
+    }
+
+    // Called from a track — surfaces from `schedule_until` the same way.
+    let src = "let boom = func() { return boom() }\ntrack 1\nlet y = boom()";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    match interp.schedule_until(0, 1_000_000_000) {
+        Err(e) => assert!(e.0.contains("call stack too deep"), "got: {}", e.0),
+        Ok(_) => panic!("expected a runtime error for unbounded recursion"),
+    }
+}
+
+#[test]
+fn interpreter_func_local_binding_does_not_leak() {
+    // A `let` inside a body is discarded when the call returns.
+    let src = "let f = func() { let tmp = 9 }\ntrack 1\nf()\nlet z = tmp";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    assert!(interp.schedule_until(0, 1_000_000_000).is_err());
+}
+
 // ---- Built-in function tests ----
 
 #[test]
@@ -138,6 +234,64 @@ fn interpreter_builtin_transpose_chord() {
     for ev in &events {
         let EventKind::Note { pitch, .. } = &ev.kind;
         assert_eq!(pitch.octave, 5);
+    }
+}
+
+fn transpose_pitch(src: &str) -> Pitch {
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let events = interp.schedule_until(0, 1_000_000_000).unwrap();
+    assert_eq!(events.len(), 1);
+    let EventKind::Note { pitch, .. } = &events[0].kind;
+    pitch.clone()
+}
+
+#[test]
+fn interpreter_builtin_transpose_keeps_flat_spelling() {
+    // A flat input spells black keys as flats, not sharps: Eb stays Eb.
+    let p = transpose_pitch("let p = transpose(<Eb4>, 0)\ntrack 1\n<p> 1/4");
+    assert_eq!((p.letter, p.accidental, p.octave), ('E', -1, 4));
+    // Whole tone up from a flat root lands on a natural.
+    let q = transpose_pitch("let q = transpose(<Bb3>, 2)\ntrack 1\n<q> 1/4");
+    assert_eq!((q.letter, q.accidental, q.octave), ('C', 0, 4));
+    // Half step down from a flat lands on a natural.
+    let r = transpose_pitch("let r = transpose(<Db4>, -1)\ntrack 1\n<r> 1/4");
+    assert_eq!((r.letter, r.accidental, r.octave), ('C', 0, 4));
+}
+
+#[test]
+fn interpreter_builtin_transpose_natural_input_stays_sharp() {
+    // A natural (or sharp) input keeps sharp spelling for black keys.
+    let p = transpose_pitch("let p = transpose(<C4>, 1)\ntrack 1\n<p> 1/4");
+    assert_eq!((p.letter, p.accidental, p.octave), ('C', 1, 4));
+}
+
+#[test]
+fn interpreter_builtin_transpose_chord_keeps_each_notes_flavour() {
+    // C (natural) + Eb (flat) transposed by 0 → C stays C, Eb stays Eb.
+    let src = "let ch = transpose(<C4, Eb4>, 0)\ntrack 1\n<ch> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    let events = interp.schedule_until(0, 1_000_000_000).unwrap();
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { pitch: p0, .. } = &events[0].kind;
+    let EventKind::Note { pitch: p1, .. } = &events[1].kind;
+    assert_eq!((p0.letter, p0.accidental), ('C', 0));
+    assert_eq!((p1.letter, p1.accidental), ('E', -1));
+}
+
+#[test]
+fn interpreter_builtin_transpose_below_c0_is_an_error() {
+    // Transposing past the bottom of the pitch range is a runtime error,
+    // not a silent clamp to C0.
+    let src = "let low = transpose(<C0>, -1)\ntrack 1\n<low> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    match Interpreter::new(program) {
+        Err(e) => assert!(e.0.contains("below C0"), "got: {}", e.0),
+        Ok(_) => panic!("expected a runtime error transposing below C0"),
     }
 }
 
@@ -875,6 +1029,49 @@ fn swing_tempo_change_resets_bar_phase() {
         *d2, 402,
         "note right after a tempo change should re-epoch to on-beat (long) at the new tempo"
     );
+}
+
+// ---- Tone filter / vibrato ----
+
+#[test]
+fn tone_params_are_stamped_on_notes() {
+    let src = "track 1\ncutoff 1800\nresonance 0.4\nvibrato 20 5\n<C4> 1/4";
+    let events = interp_events(src);
+    let EventKind::Note {
+        cutoff_hz,
+        resonance,
+        vibrato_depth_cents,
+        vibrato_rate_hz,
+        ..
+    } = &events[0].kind;
+    assert_eq!(*cutoff_hz, 1800.0);
+    assert_eq!(*resonance, 0.4);
+    assert_eq!(*vibrato_depth_cents, 20.0);
+    assert_eq!(*vibrato_rate_hz, 5.0);
+}
+
+#[test]
+fn global_tone_defaults_are_inherited_by_tracks() {
+    // `cutoff` set in global scope, before any `track`, is the default for a
+    // track that never sets its own.
+    let src = "cutoff 4000\nresonance 0.2\ntrack 1\n<C4> 1/4";
+    let events = interp_events(src);
+    let EventKind::Note {
+        cutoff_hz,
+        resonance,
+        ..
+    } = &events[0].kind;
+    assert_eq!(*cutoff_hz, 4000.0);
+    assert_eq!(*resonance, 0.2);
+}
+
+#[test]
+fn negative_cutoff_is_a_runtime_error() {
+    let src = "track 1\ncutoff -100\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    assert!(interp.schedule_until(0, 1_000_000_000).is_err());
 }
 
 #[test]

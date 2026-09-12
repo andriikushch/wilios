@@ -73,7 +73,8 @@ Press **Enter** to stop playback.
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | [language-reference.md](language-reference.md) | Complete language reference: syntax, types, operators, all statements, control flow, functions, scope, imports |
 | [synthesis.md](synthesis.md)                   | Sound synthesis: waveforms, ADSR envelopes, performance controls, legacy 2-op FM, multi-operator FM blocks     |
-| [stdlib.md](stdlib.md)                         | Standard library (`lib/lib.wilios`): 9 FM instrument presets with source, descriptions, and usage examples     |
+| [rendering.md](rendering.md)                   | Offline renderers (`dump`, `render`, `midi`, `smoke`, MCP tools) and how each one bounds an endless piece      |
+| [stdlib.md](stdlib.md)                         | Standard library (`lib/lib.wilios`): 13 FM instrument presets with source, descriptions, and usage examples    |
 | [grammar.ebnf](grammar.ebnf)                   | Formal ISO 14977 EBNF grammar                                                                                  |
 
 ---
@@ -85,7 +86,7 @@ Press **Enter** to stop playback.
 ├── examples/
 │   └── example_1.wilios   # Demo composition using all major features
 ├── lib/
-│   └── lib.wilios         # FM synthesis preset library (9 instruments)
+│   └── lib.wilios         # FM synthesis preset library (14 instruments)
 ├── doc/
 │   ├── index.md           # This file
 │   ├── language-reference.md
@@ -95,8 +96,9 @@ Press **Enter** to stop playback.
 └── crates/                # Rust implementation (Cargo workspace)
     ├── wilios-core/       # Lexer, parser, interpreter
     ├── wilios-synth/      # FM synthesis + voice mixer
+    ├── wilios-render/     # Device-independent render path (WAV, analysis, images)
     ├── wilios-cli/        # cpal audio engine + CLI (binary: wilios)
-    └── wilios-mcp/        # Placeholder crate (not implemented yet)
+    └── wilios-mcp/        # MCP server (docs/examples + validate/dump/render tools)
 ```
 
 ---
@@ -113,4 +115,4 @@ Press **Enter** to stop playback.
 
 **Arrays** — Ordered collections written as `[elem1, elem2, ...]`. Elements can be any type, including pitches and chords. Read with `a[i]`, write with `a[i] = expr`, and get the length with `len(a)`.
 
-**Standard Library** — Import `lib/lib.wilios` to get 9 ready-made FM instrument presets (`epiano`, `brass`, `bass`, `kick`, `snare`, etc.).
+**Standard Library** — Import `lib/lib.wilios` to get 14 ready-made FM instrument presets (`epiano`, `brass`, `trumpet`, `bass`, `kick`, `snare`, etc.).

@@ -1,0 +1,134 @@
+// ============================================================
+//  theory.wilios — scales, chord-tone sets, and array helpers
+//  (jazz-composer skill)
+//
+//  import "<rel>/skills/jazz-composer/lib/theory.wilios"
+//
+//  Two kinds of helper:
+//
+//  * BUILDERS are called in EXPRESSION position and RETURN a pitch array.
+//    They are straight-line (`return [...]`) because a value-returning
+//    `func` body only runs `let` / `return`. Every note is placed with
+//    `transpose` from the root, so the scale/chord is spelled in whatever
+//    key you pass — and a flat root (`Eb4`, `Bb3`) yields flat spellings.
+//
+//        let s = scale_mixo(Bb3)      // [Bb3 C4 D4 Eb4 F4 G4 Ab4]
+//        let c = chord_min7(D4)       // [D4 F4 A4 C5]
+//        <nth(s, 0)> 1/4
+//
+//  * PLAYERS are called in STATEMENT position and EMIT an array as notes,
+//    one per `dn/dd` step (both are plain integers: `run_seq(s, 1, 8)`
+//    plays 8th notes). Nothing is returned.
+//
+//  For chromatic enclosure and the fixed root/3/5/7 arpeggios, use
+//  licks.wilios (`enclose`, `arp7` / `arp_maj7` / `arp_min7`).
+// ============================================================
+
+// ---- Scale builders (root-relative, 6-8 notes) -------------------------
+
+let scale_major = func(r) {
+    return [r, transpose(r, 2), transpose(r, 4), transpose(r, 5), transpose(r, 7), transpose(r, 9), transpose(r, 11)]
+}
+let scale_dorian = func(r) {
+    return [r, transpose(r, 2), transpose(r, 3), transpose(r, 5), transpose(r, 7), transpose(r, 9), transpose(r, 10)]
+}
+let scale_mixo = func(r) {
+    return [r, transpose(r, 2), transpose(r, 4), transpose(r, 5), transpose(r, 7), transpose(r, 9), transpose(r, 10)]
+}
+let scale_lydian = func(r) {
+    return [r, transpose(r, 2), transpose(r, 4), transpose(r, 6), transpose(r, 7), transpose(r, 9), transpose(r, 11)]
+}
+let scale_mel_minor = func(r) {
+    return [r, transpose(r, 2), transpose(r, 3), transpose(r, 5), transpose(r, 7), transpose(r, 9), transpose(r, 11)]
+}
+// 1 b2 b3 3 b5 b6 b7 — the altered scale (7th mode of melodic minor)
+let scale_altered = func(r) {
+    return [r, transpose(r, 1), transpose(r, 3), transpose(r, 4), transpose(r, 6), transpose(r, 8), transpose(r, 10)]
+}
+// 1 2 3 4 5 6 b7 7 — bebop dominant (passing tone between b7 and root)
+let scale_bebop_dom = func(r) {
+    return [r, transpose(r, 2), transpose(r, 4), transpose(r, 5), transpose(r, 7), transpose(r, 9), transpose(r, 10), transpose(r, 11)]
+}
+// 1 2 3 4 5 #5 6 7 — bebop major (passing tone between 5 and 6)
+let scale_bebop_maj = func(r) {
+    return [r, transpose(r, 2), transpose(r, 4), transpose(r, 5), transpose(r, 7), transpose(r, 8), transpose(r, 9), transpose(r, 11)]
+}
+// 1 b3 4 b5 5 b7 — minor blues
+let scale_blues = func(r) {
+    return [r, transpose(r, 3), transpose(r, 5), transpose(r, 6), transpose(r, 7), transpose(r, 10)]
+}
+
+// ---- Chord-tone builders (root-relative, 4 notes) ---------------------
+
+let chord_maj7 = func(r) {
+    return [r, transpose(r, 4), transpose(r, 7), transpose(r, 11)]
+}
+let chord_maj6 = func(r) {
+    return [r, transpose(r, 4), transpose(r, 7), transpose(r, 9)]
+}
+let chord_dom7 = func(r) {
+    return [r, transpose(r, 4), transpose(r, 7), transpose(r, 10)]
+}
+let chord_min7 = func(r) {
+    return [r, transpose(r, 3), transpose(r, 7), transpose(r, 10)]
+}
+let chord_min7b5 = func(r) {
+    return [r, transpose(r, 3), transpose(r, 6), transpose(r, 10)]
+}
+let chord_dim7 = func(r) {
+    return [r, transpose(r, 3), transpose(r, 6), transpose(r, 9)]
+}
+// root 3 b7 b9 — a rootless-ish dominant colour for arpeggiating
+let chord_dom7b9 = func(r) {
+    return [r, transpose(r, 4), transpose(r, 10), transpose(r, 13)]
+}
+
+// ---- Array accessors -------------------------------------------------
+
+// nth(a, i): element i (0-based). Out of range is a runtime error.
+let nth = func(a, i) {
+    return a[i]
+}
+// wrap(a, i): element i taken modulo the length, so an index past the end
+// keeps cycling through the array (handy for ostinato / pattern reads).
+let wrap = func(a, i) {
+    return a[i % len(a)]
+}
+
+// ---- Sequence players (statement position) -------------------------
+
+// run_seq(arr, dn, dd): play every element of `arr` in order, each note
+// `dn/dd` long (e.g. run_seq(scale_dorian(D4), 1, 8) — a Dorian run in 8ths).
+let run_seq = func(arr, dn, dd) {
+    let k = 0
+    loop (k < len(arr)) {
+        <arr[k]> dn/dd
+        k = k + 1
+    }
+}
+
+// transpose_seq(arr, n, dn, dd): like run_seq but every note shifted `n`
+// semitones first — replay one scale/lick shape from a new pitch.
+let transpose_seq = func(arr, n, dn, dd) {
+    let k = 0
+    loop (k < len(arr)) {
+        <transpose(arr[k], n)> dn/dd
+        k = k + 1
+    }
+}
+
+// arp_seq(arr, dn, dd): ascend the array then descend back without
+// repeating the top or bottom note — an up/down arpeggio over any
+// chord-tone set (pair with chord_dom7 / chord_min7 / ...).
+let arp_seq = func(arr, dn, dd) {
+    let k = 0
+    loop (k < len(arr)) {
+        <arr[k]> dn/dd
+        k = k + 1
+    }
+    k = len(arr) - 2
+    loop (k > 0) {
+        <arr[k]> dn/dd
+        k = k - 1
+    }
+}

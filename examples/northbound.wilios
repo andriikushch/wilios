@@ -1,0 +1,480 @@
+// ============================================================
+//  "Northbound" — an original jazz standard.
+//
+//  Style : medium swing        Tempo : 138      Feel : swing 64
+//  Meter : 4/4                  Key   : F major
+//  Form  : 32-bar AABA, played 3x = 96 bars
+//          chorus 1 (1-32)   HEAD          — state the melody
+//          chorus 2 (33-64)  SOLO          — a written blowing chorus,
+//                                            builds to a bridge climax
+//          chorus 3 (65-96)  DEVELOPMENT   — the hook grown: chromatic
+//                                            decoration, higher register,
+//                                            F pedal + a held Fmaj9 to end
+//  Band  : brass lead + comping piano + walking bass + ride + kick/snare
+//
+//  Changes — A section (one bar each; bar 8 is a tag):
+//    | Fmaj7 | Em7b5  A7b9 | Dm7 | Gm7  C7 |
+//    | Fmaj7 | A7b9        | Dm7  G7 | Gm7  C7  (turnaround) |
+//  Changes — B section (bridge), a descending ii-V chain:
+//    | Bbmaj7 | Bbm7  Eb7 | Am7  D7 | Abm7  Db7 |
+//    | Gm7 | C7 | Am7  D7 | Gm7  C7 |
+//
+//  Run it:
+//    cargo run -- dump   examples/northbound.wilios --format roll
+//    cargo run -- render examples/northbound.wilios -o /tmp/northbound.wav
+//    cargo run -- midi   examples/northbound.wilios -o /tmp/northbound.mid
+//
+//  wilios has no chord symbols — the changes above are comments; every
+//  sounding note is spelled by name. tempo / swing / time_signature are
+//  per-track and restated identically on all five tracks.
+// ============================================================
+
+import "../lib/lib.wilios"
+
+// ============================================================
+//  LEAD  — melody / solo / development
+// ============================================================
+
+// HEAD, A-section body (bars 1-7):
+//   | Fmaj7 | Em7b5 A7b9 | Dm7 | Gm7 C7 | Fmaj7 | A7b9 | Dm7 G7 |
+let head_a = func() {
+    // Fmaj7  — the hook: rise C-D-E, hang, fall to the 3rd (A)
+    <C5> 1/8 <D5> 1/8 <E5> 1/4  <D5> 1/4  <A4> 1/4
+    // Em7b5 A7b9  — hook sequenced, lands on the 3rd of A7 (C#)
+    <D5> 1/8 <E5> 1/8 <F5> 1/4  <E5> 1/4  <C#5> 1/4
+    // Dm7  — hook a third time (rule of three), lands on the 3rd (F)
+    <A4> 1/8 <B4> 1/8 <C5> 1/4  <A4> 1/4  <F4> 1/4
+    // Gm7 C7  — hook inverted: rises to the 3rd of C7 (E)
+    <G4> 1/8 <A4> 1/8 <Bb4> 1/4  <D5> 1/4  <E5> 1/4
+    // Fmaj7  — the answer phrase: high and sustained
+    <F5> 1/2  <E5> 1/4  <D5> 1/4
+    // A7b9  — down through the altered tones C# Bb A G
+    <C#5> 1/4  <Bb4> 1/4  <A4> 1/4  <G4> 1/4
+    // Dm7 G7  — pickup shape, sets up bar 8
+    <F4> 1/8 <G4> 1/8 <A4> 1/4  <D5> 1/4  <B4> 1/4
+}
+
+// HEAD, bar 8 — turnaround tag (Gm7 C7), loops back to the top
+let head_turn = func() {
+    <D5> 1/8 <C5> 1/8 <Bb4> 1/8 <G4> 1/8  <Bb4> 1/4  <D5> 1/4
+}
+
+// HEAD, bar 32 — out-lick into the solo (Gm7 C7), chromatic climb
+let head_out = func() {
+    <D5> 1/8 <Eb5> 1/8 <E5> 1/8 <F5> 1/8  <G5> 1/8 <A5> 1/8 <Bb5> 1/4
+}
+
+// HEAD, the 8-bar bridge:
+//   | Bbmaj7 | Bbm7 Eb7 | Am7 D7 | Abm7 Db7 | Gm7 | C7 | Am7 D7 | Gm7 C7 |
+let head_bridge = func() {
+    // Bbmaj7  — calm, the 3rd (D) held
+    <D5> 1/2  <F5> 1/4  <D5> 1/4
+    // Bbm7 Eb7  — descending 4-note cell
+    <Db5> 1/4  <Bb4> 1/4  <Ab4> 1/4  <G4> 1/4
+    // Am7 D7  — the same cell a step lower
+    <C5> 1/4  <A4> 1/4  <G4> 1/4  <F#4> 1/4
+    // Abm7 Db7  — the cell lower again (parallel chromatic descent)
+    <B4> 1/4  <Ab4> 1/4  <Gb4> 1/4  <F4> 1/4
+    // Gm7  — recover, ascending
+    <Bb4> 1/2  <D5> 1/4  <F5> 1/4
+    // C7  — descending E D C Bb
+    <E5> 1/4  <D5> 1/4  <C5> 1/4  <Bb4> 1/4
+    // Am7 D7  — arpeggio up, building
+    <A4> 1/8 <C5> 1/8 <E5> 1/4  <F#5> 1/4  <A5> 1/4
+    // Gm7 C7  — a run home to the A
+    <G5> 1/8 <F5> 1/8 <E5> 1/8 <D5> 1/8  <C5> 1/4  <Bb4> 1/4
+}
+
+// SOLO chorus (bars 33-64) — a written line over the same changes,
+// building to a peak on the bridge, then winding back to the melody.
+
+let solo_a1 = func() {
+    // Fmaj7
+    <A4> 1/8 <C5> 1/8 <E5> 1/8 <G5> 1/8  <F5> 1/8 <E5> 1/8 <C5> 1/8 <A4> 1/8
+    // Em7b5 A7b9
+    <G4> 1/8 <Bb4> 1/8 <D5> 1/8 <E5> 1/8  <C#5> 1/8 <Bb4> 1/8 <A4> 1/8 <G4> 1/8
+    // Dm7
+    <F4> 1/8 <A4> 1/8 <C5> 1/8 <D5> 1/8  <E5> 1/8 <F5> 1/8 <A5> 1/4
+    // Gm7 C7
+    <G5> 1/8 <F5> 1/8 <D5> 1/8 <Bb4> 1/8  <E5> 1/8 <D5> 1/8 <C5> 1/8 <Bb4> 1/8
+    // Fmaj7
+    <A4> 1/4  <G4> 1/8 <A4> 1/8  <C5> 1/8 <E5> 1/8 <F5> 1/8 <A5> 1/8
+    // A7b9
+    <G5> 1/8 <F5> 1/8 <E5> 1/8 <C#5> 1/8  <Bb4> 1/8 <A4> 1/8 <G4> 1/8 <F4> 1/8
+    // Dm7 G7
+    <F4> 1/8 <A4> 1/8 <D5> 1/8 <F5> 1/8  <E5> 1/8 <D5> 1/8 <B4> 1/8 <G4> 1/8
+    // Gm7 C7
+    <Bb4> 1/8 <D5> 1/8 <F5> 1/8 <D5> 1/8  <E5> 1/8 <C5> 1/8 <Bb4> 1/8 rest 1/8
+}
+
+let solo_a2 = func() {
+    // Fmaj7
+    rest 1/8 <E5> 1/8 <F5> 1/8 <A5> 1/8  <G5> 1/8 <F5> 1/8 <E5> 1/8 <D5> 1/8
+    // Em7b5 A7b9  — with a chromatic 8th-note triplet
+    <C5> 1/8 <D5> 1/8  <Eb5> 1/12 <E5> 1/12 <F5> 1/12  <E5> 1/8 <C#5> 1/8 <A4> 1/8 <G4> 1/8
+    // Dm7
+    <F4> 1/8 <G4> 1/8 <A4> 1/8 <C5> 1/8  <D5> 1/8 <F5> 1/8 <E5> 1/8 <C5> 1/8
+    // Gm7 C7
+    <D5> 1/8 <Bb4> 1/8 <G4> 1/8 <Bb4> 1/8  <C5> 1/8 <E5> 1/8 <G5> 1/8 <Bb5> 1/8
+    // Fmaj7
+    <A5> 1/4  <G5> 1/8 <F5> 1/8  <E5> 1/8 <D5> 1/8 <C5> 1/8 <A4> 1/8
+    // A7b9
+    <Bb4> 1/8 <C#5> 1/8 <E5> 1/8 <G5> 1/8  <F5> 1/8 <E5> 1/8 <C#5> 1/8 <Bb4> 1/8
+    // Dm7 G7
+    <A4> 1/8 <C5> 1/8 <E5> 1/8 <D5> 1/8  <B4> 1/8 <G4> 1/8 <F4> 1/8 <D4> 1/8
+    // Gm7 C7
+    <G4> 1/8 <A4> 1/8 <Bb4> 1/8 <C5> 1/8  <D5> 1/8 <Eb5> 1/8 <E5> 1/8 rest 1/8
+}
+
+let solo_bridge = func() {
+    // Bbmaj7  — up into the top of the range
+    <F5> 1/8 <A5> 1/8 <C6> 1/8 <D6> 1/8  <C6> 1/8 <A5> 1/8 <F5> 1/8 <D5> 1/8
+    // Bbm7 Eb7
+    <Db5> 1/8 <F5> 1/8 <Ab5> 1/8 <Bb5> 1/8  <G5> 1/8 <F5> 1/8 <Db5> 1/8 <Bb4> 1/8
+    // Am7 D7
+    <C5> 1/8 <E5> 1/8 <G5> 1/8 <A5> 1/8  <F#5> 1/8 <E5> 1/8 <C5> 1/8 <A4> 1/8
+    // Abm7 Db7
+    <B4> 1/8 <Eb5> 1/8 <Gb5> 1/8 <Ab5> 1/8  <F5> 1/8 <Eb5> 1/8 <B4> 1/8 <Ab4> 1/8
+    // Gm7
+    <Bb4> 1/8 <D5> 1/8 <F5> 1/8 <G5> 1/8  <Bb5> 1/8 <G5> 1/8 <F5> 1/8 <D5> 1/8
+    // C7  — second peak at C6
+    <E5> 1/8 <G5> 1/8 <Bb5> 1/8 <C6> 1/8  <Bb5> 1/8 <G5> 1/8 <E5> 1/8 <D5> 1/8
+    // Am7 D7
+    <C5> 1/8 <E5> 1/8 <A5> 1/8 <G5> 1/8  <F#5> 1/8 <A5> 1/8 <C5> 1/8 <A4> 1/8
+    // Gm7 C7  — wind down, land, breathe
+    <Bb4> 1/8 <G4> 1/8 <E5> 1/8 <C5> 1/8  <D5> 1/4  rest 1/4
+}
+
+let solo_a3 = func() {
+    // Fmaj7  — back to mid register, the space returns
+    <A4> 1/4  <C5> 1/8 <A4> 1/8  <F4> 1/4  rest 1/4
+    // Em7b5 A7b9
+    rest 1/4  <G4> 1/8 <Bb4> 1/8  <C#5> 1/8 <E5> 1/8 <G4> 1/8 <Bb4> 1/8
+    // Dm7
+    <A4> 1/4  <F4> 1/8 <A4> 1/8  <D5> 1/4  rest 1/4
+    // Gm7 C7
+    rest 1/4  <Bb4> 1/8 <D5> 1/8  <E5> 1/8 <D5> 1/8 <C5> 1/8 <Bb4> 1/8
+    // Fmaj7
+    <A4> 1/2  <G4> 1/4  <A4> 1/4
+    // A7b9
+    <C#5> 1/4  <E5> 1/4  <G4> 1/4  <Bb4> 1/4
+    // Dm7 G7
+    <A4> 1/4  <F4> 1/4  <G4> 1/4  <B4> 1/4
+    // Gm7 C7  — hand back to the melody
+    <D5> 1/8 <C5> 1/8 <Bb4> 1/8 <G4> 1/8  <C5> 1/4  <D5> 1/4
+}
+
+// DEVELOPMENT chorus (bars 65-96) — the hook, grown.
+
+let dev_a = func() {
+    // Fmaj7  — hook + a chromatic Db passing tone
+    <C5> 1/8 <D5> 1/8 <E5> 1/4  <D5> 1/8 <Db5> 1/8 <A4> 1/4
+    // Em7b5 A7b9  — hook + passing D
+    <D5> 1/8 <E5> 1/8 <F5> 1/4  <E5> 1/8 <D5> 1/8 <C#5> 1/4
+    // Dm7  — hook + passing G
+    <A4> 1/8 <B4> 1/8 <C5> 1/4  <A4> 1/8 <G4> 1/8 <F4> 1/4
+    // Gm7 C7  — hook reaching higher, up to G5
+    <G4> 1/8 <A4> 1/8 <Bb4> 1/4  <D5> 1/8 <E5> 1/8 <G5> 1/4
+    // Fmaj7  — the answer lifted, busier tail
+    <F5> 1/4 <A5> 1/4  <G5> 1/8 <F5> 1/8 <E5> 1/8 <D5> 1/8
+    // A7b9  — an enclosure of C#, then descend
+    <C#5> 1/8 <D5> 1/8 <C#5> 1/8 <Bb4> 1/8  <A4> 1/8 <G4> 1/8 <F4> 1/8 <E4> 1/8
+    // Dm7 G7
+    <F4> 1/8 <G4> 1/8 <A4> 1/4  <D5> 1/8 <C5> 1/8 <B4> 1/4
+}
+
+let dev_turn = func() {
+    <D5> 1/8 <C5> 1/8 <Bb4> 1/8 <A4> 1/8  <G4> 1/8 <Bb4> 1/8 <D5> 1/8 <F5> 1/8
+}
+
+let dev_bridge = func() {
+    // Bbmaj7  — the bridge, up high now
+    <A5> 1/2  <F5> 1/4  <D5> 1/4
+    // Bbm7 Eb7
+    <Ab5> 1/4  <F5> 1/4  <Db5> 1/4  <Bb4> 1/4
+    // Am7 D7
+    <G5> 1/4  <E5> 1/4  <C5> 1/4  <A4> 1/4
+    // Abm7 Db7
+    <Gb5> 1/4  <Eb5> 1/4  <B4> 1/4  <Ab4> 1/4
+    // Gm7  — climb to the peak of the piece
+    <Bb4> 1/8 <D5> 1/8 <G5> 1/8 <Bb5> 1/8  <C6> 1/4  <Bb5> 1/4
+    // C7
+    <A5> 1/8 <G5> 1/8 <E5> 1/8 <D5> 1/8  <E5> 1/8 <G5> 1/8 <Bb5> 1/8 <C6> 1/8
+    // Am7 D7
+    <A5> 1/8 <G5> 1/8 <F#5> 1/8 <E5> 1/8  <C5> 1/8 <E5> 1/8 <A4> 1/8 <C5> 1/8
+    // Gm7 C7  — a big ascending run into the final A
+    <D5> 1/8 <E5> 1/8 <F5> 1/8 <G5> 1/8  <A5> 1/8 <Bb5> 1/8 <C6> 1/4
+}
+
+let dev_final = func() {
+    // bar 96 — Fmaj9, held
+    <F4, A4, C5, E5, G5> 1/1
+}
+
+// ============================================================
+//  BASS  — two-feel on the head's first A, then walking quarters;
+//  an F pedal under the final development A.
+// ============================================================
+
+// two-feel (root / 5th half notes) for the head's first A
+let bass_a_two = func() {
+    <F1> 1/2 <C2> 1/2
+    <E1> 1/2 <A1> 1/2
+    <D1> 1/2 <A1> 1/2
+    <G1> 1/2 <C2> 1/2
+    <F1> 1/2 <C2> 1/2
+    <A1> 1/2 <E2> 1/2
+    <D2> 1/2 <G1> 1/2
+    <G1> 1/2 <C2> 1/2
+}
+
+// walking quarters, A-section body (7 bars)
+let bass_a = func() {
+    <F1> 1/4 <A1> 1/4 <C2> 1/4 <F1> 1/4     // Fmaj7   -> E
+    <E1> 1/4 <G1> 1/4 <A1> 1/4 <C#2> 1/4    // Em7b5 A7b9 -> D
+    <D2> 1/4 <F1> 1/4 <A1> 1/4 <Ab1> 1/4    // Dm7     -> G
+    <G1> 1/4 <Bb1> 1/4 <C2> 1/4 <E1> 1/4    // Gm7 C7  -> F
+    <F1> 1/4 <A1> 1/4 <C2> 1/4 <E2> 1/4     // Fmaj7   -> A
+    <A1> 1/4 <C#2> 1/4 <E2> 1/4 <Eb2> 1/4   // A7b9    -> D
+    <D2> 1/4 <F1> 1/4 <G1> 1/4 <B1> 1/4     // Dm7 G7  -> (tag)
+}
+
+// bar 8 — turnaround (Gm7 C7), walks up to F
+let bass_turn = func() {
+    <G1> 1/4 <Bb1> 1/4 <C2> 1/4 <E1> 1/4
+}
+
+// walking the 8-bar bridge
+let bass_bridge = func() {
+    <Bb1> 1/4 <D2> 1/4 <F2> 1/4 <Bb1> 1/4    // Bbmaj7
+    <Bb1> 1/4 <Db2> 1/4 <Eb1> 1/4 <Bb1> 1/4  // Bbm7 Eb7 -> A
+    <A1> 1/4 <C2> 1/4 <D2> 1/4 <A1> 1/4      // Am7 D7   -> Ab
+    <Ab1> 1/4 <B1> 1/4 <Db2> 1/4 <Ab1> 1/4   // Abm7 Db7 -> G
+    <G1> 1/4 <Bb1> 1/4 <D2> 1/4 <Db2> 1/4    // Gm7      -> C
+    <C2> 1/4 <E2> 1/4 <G1> 1/4 <Bb1> 1/4     // C7       -> A
+    <A1> 1/4 <C2> 1/4 <D2> 1/4 <F#1> 1/4     // Am7 D7   -> G
+    <G1> 1/4 <Bb1> 1/4 <C2> 1/4 <E1> 1/4     // Gm7 C7   -> F
+}
+
+// F pedal (root / 5th) under the final development A (7 bars)
+let bass_pedal = func() {
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+    <F1> 1/4 <C2> 1/4 <F1> 1/4 <C2> 1/4
+}
+
+// bar 96 — held root
+let bass_final = func() {
+    <F1> 1/1
+}
+
+// ============================================================
+//  RIDE  — one bar of swing "spang-a-lang"
+// ============================================================
+let ride1 = func() {
+    <F5> 1/4  <F5> 1/8 <F5> 1/8  <F5> 1/4  <F5> 1/8 <F5> 1/8
+}
+
+// ============================================================
+//  COMP  — comp_piano; rootless voicings (low -> high):
+//    Fmaj7 <A3 C4 E4 G4>    Em7b5 <G3 Bb3 D4 F4>   A7b9 <G3 Bb3 C#4 E4>
+//    Dm7   <F3 A3 C4 E4>    Gm7   <F3 A3 Bb3 D4>   C7   <E3 G3 Bb3 D4>
+//    G7    <F3 A3 B3 D4>    Bbmaj7<D3 F3 A3 C4>    Bbm7 <Db3 F3 Ab3 C4>
+//    Eb7   <Db3 G3 Bb3 C4>  Am7  <C4 E4 G4 B4>    D7   <F#3 A3 C4 E4>
+//    Abm7  <B3 Eb4 Gb4 Bb4> Db7  <F3 Ab3 B3 Eb4>
+//  Lays out on the head's first A, sparse under the rest of the head,
+//  busy under the solo, held pads under the development.
+// ============================================================
+
+// sparse comping, A-section body (7 bars)
+let comp_a = func() {
+    <A3, C4, E4, G4> 1/8 rest 3/8   rest 1/8 <A3, C4, E4, G4> 1/8 rest 1/4
+    rest 3/8 <G3, Bb3, D4, F4> 1/8   rest 1/8 <G3, Bb3, C#4, E4> 1/8 rest 1/4
+    <F3, A3, C4, E4> 1/8 rest 3/8   rest 1/2
+    rest 1/4 <F3, A3, Bb3, D4> 1/8 rest 1/8   <E3, G3, Bb3, D4> 1/4 rest 1/4
+    <A3, C4, E4, G4> 1/8 rest 3/8   rest 1/8 <A3, C4, E4, G4> 1/8 rest 1/4
+    rest 3/8 <G3, Bb3, C#4, E4> 1/8   rest 1/2
+    rest 1/4 <F3, A3, C4, E4> 1/8 rest 1/8   rest 1/4 <F3, A3, B3, D4> 1/8 rest 1/8
+}
+
+// bar 8 — turnaround comp (Gm7 C7)
+let comp_turn = func() {
+    rest 1/4 <F3, A3, Bb3, D4> 1/8 rest 1/8   <E3, G3, Bb3, D4> 1/8 rest 3/8
+}
+
+// sparse comping, the bridge (8 bars)
+let comp_bridge = func() {
+    <D3, F3, A3, C4> 1/4 rest 3/4
+    <Db3, F3, Ab3, C4> 1/4 rest 1/4   <Db3, G3, Bb3, C4> 1/4 rest 1/4
+    <C4, E4, G4, B4> 1/4 rest 1/4   <F#3, A3, C4, E4> 1/4 rest 1/4
+    <B3, Eb4, Gb4, Bb4> 1/4 rest 1/4   <F3, Ab3, B3, Eb4> 1/4 rest 1/4
+    <F3, A3, Bb3, D4> 1/4 rest 3/4
+    rest 1/4 <E3, G3, Bb3, D4> 1/4 rest 1/2
+    <C4, E4, G4, B4> 1/4 rest 1/4   <F#3, A3, C4, E4> 1/4 rest 1/4
+    <F3, A3, Bb3, D4> 1/4 rest 1/4   <E3, G3, Bb3, D4> 1/4 rest 1/4
+}
+
+// busy comping, A-section body (7 bars) — solo chorus
+let comp_a_busy = func() {
+    <A3, C4, E4, G4> 1/8 rest 1/8 <A3, C4, E4, G4> 1/4   rest 1/8 <A3, C4, E4, G4> 1/8 rest 1/4
+    <G3, Bb3, D4, F4> 1/8 rest 1/8 <G3, Bb3, D4, F4> 1/4   rest 1/8 <G3, Bb3, C#4, E4> 1/8 rest 1/4
+    <F3, A3, C4, E4> 1/8 rest 1/8 <F3, A3, C4, E4> 1/4   rest 1/8 <F3, A3, C4, E4> 1/8 rest 1/4
+    <F3, A3, Bb3, D4> 1/8 rest 1/8 <F3, A3, Bb3, D4> 1/4   rest 1/8 <E3, G3, Bb3, D4> 1/8 rest 1/4
+    <A3, C4, E4, G4> 1/8 rest 1/8 <A3, C4, E4, G4> 1/4   rest 1/8 <A3, C4, E4, G4> 1/8 rest 1/4
+    <G3, Bb3, C#4, E4> 1/8 rest 1/8 <G3, Bb3, C#4, E4> 1/4   rest 1/8 <G3, Bb3, C#4, E4> 1/8 rest 1/4
+    <F3, A3, C4, E4> 1/8 rest 1/8 <F3, A3, C4, E4> 1/4   rest 1/8 <F3, A3, B3, D4> 1/8 rest 1/4
+}
+
+// busy comping, the bridge (8 bars) — solo chorus
+let comp_bridge_busy = func() {
+    <D3, F3, A3, C4> 1/8 rest 1/8 <D3, F3, A3, C4> 1/4   rest 1/8 <D3, F3, A3, C4> 1/8 rest 1/4
+    <Db3, F3, Ab3, C4> 1/8 rest 1/8 <Db3, F3, Ab3, C4> 1/4   <Db3, G3, Bb3, C4> 1/8 rest 1/8 <Db3, G3, Bb3, C4> 1/4
+    <C4, E4, G4, B4> 1/8 rest 1/8 <C4, E4, G4, B4> 1/4   <F#3, A3, C4, E4> 1/8 rest 1/8 <F#3, A3, C4, E4> 1/4
+    <B3, Eb4, Gb4, Bb4> 1/8 rest 1/8 <B3, Eb4, Gb4, Bb4> 1/4   <F3, Ab3, B3, Eb4> 1/8 rest 1/8 <F3, Ab3, B3, Eb4> 1/4
+    <F3, A3, Bb3, D4> 1/8 rest 1/8 <F3, A3, Bb3, D4> 1/4   rest 1/8 <F3, A3, Bb3, D4> 1/8 rest 1/4
+    <E3, G3, Bb3, D4> 1/8 rest 1/8 <E3, G3, Bb3, D4> 1/4   rest 1/8 <E3, G3, Bb3, D4> 1/8 rest 1/4
+    <C4, E4, G4, B4> 1/8 rest 1/8 <C4, E4, G4, B4> 1/4   <F#3, A3, C4, E4> 1/8 rest 1/8 <F#3, A3, C4, E4> 1/4
+    <F3, A3, Bb3, D4> 1/8 rest 1/8 <F3, A3, Bb3, D4> 1/4   <E3, G3, Bb3, D4> 1/8 rest 1/8 <E3, G3, Bb3, D4> 1/4
+}
+
+// held pads, A-section body (7 bars) — development chorus
+let comp_a_pad = func() {
+    <A3, C4, E4, G4> 1/1
+    <G3, Bb3, D4, F4> 1/2 <G3, Bb3, C#4, E4> 1/2
+    <F3, A3, C4, E4> 1/1
+    <F3, A3, Bb3, D4> 1/2 <E3, G3, Bb3, D4> 1/2
+    <A3, C4, E4, G4> 1/1
+    <G3, Bb3, C#4, E4> 1/1
+    <F3, A3, C4, E4> 1/2 <F3, A3, B3, D4> 1/2
+}
+
+// held pads, the bridge (8 bars) — development chorus
+let comp_bridge_pad = func() {
+    <D3, F3, A3, C4> 1/1
+    <Db3, F3, Ab3, C4> 1/2 <Db3, G3, Bb3, C4> 1/2
+    <C4, E4, G4, B4> 1/2 <F#3, A3, C4, E4> 1/2
+    <B3, Eb4, Gb4, Bb4> 1/2 <F3, Ab3, B3, Eb4> 1/2
+    <F3, A3, Bb3, D4> 1/1
+    <E3, G3, Bb3, D4> 1/1
+    <C4, E4, G4, B4> 1/2 <F#3, A3, C4, E4> 1/2
+    <F3, A3, Bb3, D4> 1/2 <E3, G3, Bb3, D4> 1/2
+}
+
+// bar 96 — Fmaj9 pad under the lead's held chord
+let comp_final = func() {
+    <F3, A3, C4, E4, G4> 1/1
+}
+
+// ============================================================
+//  TRACKS  — every track restates tempo 138 / swing 64 / time_signature 4/4
+// ============================================================
+
+// ---- LEAD ----
+track 1
+tempo 138
+swing 64
+time_signature 4/4
+volume 74
+brass()
+// chorus 1 — HEAD
+head_a() head_turn()
+head_a() head_turn()
+head_bridge()
+head_a() head_out()
+// chorus 2 — SOLO
+solo_a1()
+solo_a2()
+solo_bridge()
+solo_a3()
+// chorus 3 — DEVELOPMENT
+dev_a() dev_turn()
+dev_a() dev_turn()
+dev_bridge()
+dev_a() dev_final()
+
+// ---- COMP ----
+track 2
+tempo 138
+swing 64
+time_signature 4/4
+volume 44
+pan -18
+comp_piano()
+// chorus 1 — lay out on the first A, then sparse
+rest 1/1 rest 1/1 rest 1/1 rest 1/1 rest 1/1 rest 1/1 rest 1/1 rest 1/1
+comp_a() comp_turn()
+comp_bridge()
+comp_a() comp_turn()
+// chorus 2 — busy
+comp_a_busy() comp_turn()
+comp_a_busy() comp_turn()
+comp_bridge_busy()
+comp_a_busy() comp_turn()
+// chorus 3 — pads
+comp_a_pad() comp_turn()
+comp_a_pad() comp_turn()
+comp_bridge_pad()
+comp_a_pad() comp_final()
+
+// ---- WALKING BASS ----
+track 3
+tempo 138
+swing 64
+time_signature 4/4
+volume 80
+bass()
+// chorus 1
+bass_a_two()
+bass_a() bass_turn()
+bass_bridge()
+bass_a() bass_turn()
+// chorus 2
+bass_a() bass_turn()
+bass_a() bass_turn()
+bass_bridge()
+bass_a() bass_turn()
+// chorus 3
+bass_a() bass_turn()
+bass_a() bass_turn()
+bass_bridge()
+bass_pedal() bass_final()
+
+// ---- RIDE (hi-hat "spang-a-lang" — hihat_c has a short decay so the
+//      pattern does not pile up into a wash the way the `ride` preset,
+//      with its ~3s tail, does at this note density) ----
+track 4
+tempo 138
+swing 64
+time_signature 4/4
+volume 46
+pan 32
+hihat_c()
+let r = 0
+loop (r < 95) {
+    r = r + 1
+    ride1()
+}
+// bar 96 — one open hi-hat to finish
+hihat_o() <F5> 1/1
+
+// ---- KICK + SNARE ----
+track 5
+tempo 138
+swing 64
+time_signature 4/4
+volume 30
+pan -25
+let k = 0
+loop (k < 95) {
+    k = k + 1
+    kick()  <B1> 1/4
+    snare() <A3> 1/4
+    kick()  <B1> 1/4
+    snare() <A3> 1/4
+}
+// bar 96 — snare fill into a final kick
+snare() <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8 <A3> 1/8  kick() <B1> 1/4
