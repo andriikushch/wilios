@@ -27,7 +27,8 @@ bebop_a_line(Bb4)          // an 8-bar line, built from ii-V-I + turnaround lick
   return values, and a `let`/param bound inside a body is gone when the call
   returns.
 - A helper does **not** set `tempo` / `swing` / `time_signature` — those are
-  per-track and literal-only. Set them yourself at the top of every track.
+  per-track. Set them yourself at the top of every track (`tempo` needs a
+  literal; `swing` takes an expression, so it can read a global `let feel`).
 - Melodic helpers take a **root pitch** and place themselves with `transpose`,
   so one lick plays in any key. Comp helpers take a **hand-spelled voicing**
   (a chord value). Drum/bass helpers take a **bar count** and/or pitches.

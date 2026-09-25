@@ -2,7 +2,8 @@
 
 ## How `swing` works here
 
-`swing N` (N = 50–100, integer or float literal) applies to **8th-note pairs**:
+`swing N` (N = 50–100, any numeric expression — literal, variable, or
+arithmetic) applies to **8th-note pairs**:
 the on-beat (even slot) 8th is lengthened, the off-beat (odd slot) 8th is
 shortened, and the two always sum to the straight quarter. Quarter notes and
 anything longer are **unaffected**; notes shorter than an 8th pass through

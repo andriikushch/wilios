@@ -931,6 +931,56 @@ fn swing_float_form_accepted() {
 }
 
 #[test]
+fn swing_accepts_a_variable() {
+    // `swing` takes an expression, so one global `let` can set the feel for
+    // every track and every phrase `func` that restores it.
+    let src = "let feel = 67\ntrack 1\ntempo 120\nswing feel\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(
+        *d1, 335,
+        "swing from a variable should behave like `swing 67`"
+    );
+    assert_eq!(*d2, 165);
+}
+
+#[test]
+fn swing_value_does_not_swallow_a_following_note() {
+    // Statements may share a line, so `swing 50 <C4> 1/8` must parse as a feel
+    // and then a note — not as the comparison `swing (50 < C4)`. This is why
+    // the feel is parsed at additive binding power rather than 0.
+    let src = "track 1\ntempo 120\nswing 67\nswing 50 <C4> 1/8 <D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events.len(), 2);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    let EventKind::Note { duration: d2, .. } = &events[1].kind;
+    assert_eq!(*d1, 250, "the inline `swing 50` should have taken effect");
+    assert_eq!(*d2, 250);
+}
+
+#[test]
+fn swing_value_accepts_arithmetic() {
+    let src = "let base = 60\ntrack 1\ntempo 120\nswing base + 7\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    let EventKind::Note { duration: d1, .. } = &events[0].kind;
+    assert_eq!(*d1, 335, "`swing base + 7` should equal `swing 67`");
+}
+
+#[test]
+fn swing_from_a_non_numeric_variable_errors() {
+    let src = "let feel = true\ntrack 1\ntempo 120\nswing feel\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    assert!(
+        interp.schedule_until(0, 1_000_000_000).is_err(),
+        "a non-numeric swing value should be a RuntimeError"
+    );
+}
+
+#[test]
 fn swing_out_of_range_low_errors() {
     let src = "track 1\ntempo 120\nswing 49\n<C4> 1/4";
     let tokens = Lexer::new(src).lex().unwrap();

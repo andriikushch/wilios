@@ -806,6 +806,10 @@ impl Parser {
         }
     }
 
+    /// Left binding power of `+`/`-` — the floor for statement operands that
+    /// must not swallow a following `<note>` as a comparison (see `parse_swing`).
+    const ADDITIVE_BP: u8 = 9;
+
     fn binding_power(tok: &Token) -> Option<(u8, u8)> {
         match tok {
             Token::Or => Some((1, 2)),
@@ -879,19 +883,18 @@ impl Parser {
         }
     }
 
+    /// Reads the feel after `swing` — a literal, a variable, or arithmetic over
+    /// them, so one `let feel = 63` can be shared by every track and phrase
+    /// `func`. The value must be numeric and within [50, 100]; both are checked
+    /// at run time.
+    ///
+    /// Parsed at additive binding power, not `0`, so the expression stops before
+    /// a comparison: statements may share a line in this language, and
+    /// `swing 50  <C4> 1/8` must read as a feel followed by a note, not as
+    /// `swing (50 < C4)`. Wrap it in parens if a comparison is ever wanted.
     fn parse_swing(&mut self) -> Result<Stmt, ParseError> {
         self.next(); // consume `swing`
-        let value = match self.current_token().cloned() {
-            Some(Token::Float(f)) => {
-                self.next();
-                Expr::Float(f)
-            }
-            Some(Token::Int(n)) => {
-                self.next();
-                Expr::Int(n)
-            }
-            _ => return Err(self.make_error("expected numeric value after `swing`")),
-        };
+        let value = self.parse_expr(Self::ADDITIVE_BP)?;
         Ok(Stmt::Swing(value))
     }
 

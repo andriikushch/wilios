@@ -118,7 +118,7 @@ Applies a swing feel to 8th-note pairs. Notes on the **on-beat** (even) 8th-note
 The on-beat/off-beat slot count resets at the start of every bar, as declared by [`time_signature`](#time-signature) — the first note of each bar is always the on-beat (long) slot.
 
 ```
-swing integer_or_float
+swing numeric_expr
 ```
 
 | Value | Effect |
@@ -155,6 +155,59 @@ rest 1/8         // on-beat rest → 335ms; next note lands on off-beat
 ```
 
 Both integer and float literals are accepted: `swing 67` and `swing 67.0` are equivalent.
+
+#### What swing does to a duration
+
+At `swing > 50` every note and rest of `1/8` or longer is re-expressed as a whole
+number of 8th-note slots — `round(duration / (1/8))` of them — taken alternately
+**long, short, long, …** starting from the slot its own position falls on. The
+swung value is what advances the track position, so this decides where the next
+note starts as well as how long this one sounds.
+
+Three consequences, in the order they bite:
+
+1. **A duration that is an exact multiple of `1/8` keeps the grid.** Individual
+   notes stretch and shrink — that is the feel — and every full bar still adds up
+   exactly, because a 4/4 bar is 8 slots = 4 long + 4 short. An even slot span
+   (quarter, half, whole) comes out exactly as written; an **odd** span is
+   redistributed and plays slightly long, with the next note absorbing the
+   difference. At `swing 67`, `<C4> 1/4.` (3 slots) plays 1.67 beats, not 1.5,
+   and the `1/8` after it plays 0.33 — which is the intended long-short feel.
+
+2. **A duration that is not a multiple of `1/8` is re-quantized, and the bar
+   drifts.** A dotted 8th (`1/8.` = `3/16`, 1.5 slots) rounds up to 2 slots and
+   plays a **full beat**; a quarter-note triplet (`1/6`, 1.33 slots) rounds down
+   to 1. The classic shuffle figure `<E4> 1/8. <F4> 1/16` comes out a beat and a
+   quarter long, so the bar no longer totals 4 beats and tracks that started
+   together end apart.
+
+3. **A duration shorter than `1/8` passes through untouched** (`1/16`, `1/12`,
+   `1/32`), but it leaves the position off the slot grid, so the *next* note's
+   long/short assignment is read from the wrong slot.
+
+**The guard pattern.** Where fine values are wanted under a swung feel, straighten
+the feel for them and restore it. Quarter triplets and grace notes are played even
+anyway, so nothing musical is lost:
+
+```wilios
+let feel = 63
+
+let trip = func(a, b, c) {         // quarter-note triplet
+    swing 50
+    <a> 1/6 <b> 1/6 <c> 1/6        // exact; the three total one half note
+    swing feel
+}
+
+let scoop = func(from, to) {       // grace note into a target
+    swing 50
+    <from> 1/16  <to> 3/16         // exact; the pair totals one beat
+    swing feel
+}
+```
+
+The guarded run must itself total a whole number of 8th slots (both of these
+total 2 slots per beat), or everything after it lands off the grid.
+`examples/all_of_me_swung.wilios` uses both.
 
 ### Time Signature
 

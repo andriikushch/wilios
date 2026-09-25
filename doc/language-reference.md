@@ -356,10 +356,10 @@ pan 127     // hard right
 
 #### Swing
 
-Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. Accepts an integer or float literal. The on-beat/off-beat slot count resets at the start of every bar (see [Time Signature](#time-signature) below) — the first note of each bar is always on-beat.
+Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Durations of `1/8` or longer are re-expressed as a whole number of 8th-note slots, so a value that is **not** a multiple of `1/8` (a dotted 8th, a `1/6` quarter triplet) is re-quantized and the bar drifts — guard those with `swing 50` and restore the feel after. Notes shorter than an 8th pass through unchanged. See [synthesis.md — What swing does to a duration](synthesis.md#what-swing-does-to-a-duration). Accepts a literal, a variable, or arithmetic over them (unlike literal-only `tempo`/`volume`/`pan`). The value is parsed at additive binding power so that a following note is not swallowed as a comparison — `swing 50 <C4> 1/8` on one line is a feel and then a note; parenthesise if a comparison is ever intended. The on-beat/off-beat slot count resets at the start of every bar (see [Time Signature](#time-signature) below) — the first note of each bar is always on-beat.
 
 ```
-swing integer_or_float
+swing numeric_expr
 ```
 
 Valid range: `50` (straight, default) to `100` (maximum swing). Values outside this range are a runtime error.
