@@ -33,6 +33,23 @@ may recurse or be mutually recursive.
 - Deep runaway recursion in expression position (`let y = f()` with no base
   case) stops with a `call stack too deep` runtime error rather than crashing.
 
+## Placement: `swing` is only half of feel
+
+`swing` displaces the off-beat 8ths of every track that sets it. To put a *line*
+behind the beat (or ahead of it) — a soloist against a section that stays on top
+— use `offset`, a per-track duration that shifts when the track sounds without
+moving where it is written:
+
+```wilios
+offset 1/64      // behind the beat; ~35ms at 144bpm
+offset -1/64     // ahead of it
+offset 0         // back on it
+let j = rand(-1, 1)
+offset j/64      // humanize, note to note
+```
+
+`examples/feel.wilios` is the worked demo.
+
 ## `tempo` / `swing` / `time_signature` are per-track
 
 - `tempo` accepts a **literal integer** only — no variable, no expression, no
@@ -83,35 +100,10 @@ descending approach). No double sharps/flats.
 - Variable durations (`n/d` where `n` or `d` is a variable) are allowed but
   cannot be dotted, and a runtime-computed division that is implausibly large is
   a `TimeError` naming the line.
-- **Under `swing`, every duration must be a whole multiple of `1/8`.** Values of
-  `1/8` or longer are re-quantized to whole 8th slots, so a dotted 8th (`3/16`)
-  or a `1/6` quarter triplet comes out wrong and the bar drifts; shorter values
-  pass through but leave the position off the grid. Full rule:
-  [`doc/synthesis.md`](../../../doc/synthesis.md#what-swing-does-to-a-duration).
-- Tuplets are exact and never drift **at straight feel**: `1/12` = 8th-note
-  triplet, `1/6` = quarter triplet, `1/20` = quintuplet in a quarter.
-- **`1/16` (and shorter non-tuplet) notes under `swing` drift the bar's exact
-  position** — a phrase of `1/16 1/16 1/8` groups repeated under `swing 63` ends
-  a hair short of a whole bar, so a `smoke` equal-length check fails. Tuplets
-  *shorter than an 8th* (`1/12`, `1/20`) do not drift — they take swing's early
-  return. For a bebop enclosure, write the pickup as an 8th-note triplet
-  (`<x> 1/12 <y> 1/12 <t> 1/12`), not `1/16`s.
-- **A `1/6` quarter triplet is longer than an 8th, so `swing` *does* mangle
-  it**: each note is rounded to one swung 8th slot, and the three together come
-  out ~1.6 beats instead of 2 — the bar is short and the tracks desync. Quarter
-  triplets are played even anyway, so straighten the feel around them and
-  restore it (`swing` takes an expression, so the feel can be a variable):
-
-  ```wilios
-  let feel = 63
-  let trip = func(a, b, c) {
-      swing 50
-      <a> 1/6 <b> 1/6 <c> 1/6
-      swing feel
-  }
-  ```
-
-  Worked example: `examples/all_of_me.wilios`.
+- Tuplets are exact and never drift: `1/12` = 8th-note triplet, `1/6` = quarter
+  triplet, `1/20` = quintuplet in a quarter. This holds **under a swung feel
+  too** — `swing` displaces onsets and never rewrites a written value, so no
+  straight-feel guard is needed around a tuplet or a dotted value.
 - `time_signature` never changes a note's length — a `1/8` is the same in 4/4
   and 7/8. It only anchors the swing bar-phase and is stamped as metadata.
 

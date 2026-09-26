@@ -1,0 +1,81 @@
+// ============================================================
+//  "Behind It" — 8 bars of original blues-ish riff, demonstrating feel.
+//
+//  Style : medium swing      Tempo : 132      Feel : swing 66
+//  Key   : F                 Meter : 4/4      Form : 8 bars
+//  Band  : trumpet lead + comp piano
+//
+//  What this example is for — three things that used to be impossible:
+//
+//   1. `offset` puts a track behind (or ahead of) the beat. The lead sits
+//      1/64 late through bars 1-4 and locks on the beat for 5-8; the comp
+//      never moves. That disagreement is what makes a line sound played
+//      rather than sequenced. Only `Event::at` moves — `at_beats` stays
+//      written, so the tracks still end together and `smoke` still proves it.
+//
+//   2. Quarter triplets and dotted-8th shuffles survive a swung feel. `swing`
+//      displaces onsets; it no longer rewrites durations, so a 1/6 triplet is
+//      exactly 1/6 and `1/8. 1/16` is exactly 3/16 + 1/16 — no straight-feel
+//      guard around them.
+//
+//   3. Humanize needs no tool: a variable works in the offset, so
+//      `let j = rand(-1, 1)` then `offset j/64` jitters placement note to
+//      note. Left out here on purpose — `rand` is unseeded, and an example
+//      should render the same every time.
+//
+//  Run it:
+//    cargo run -- dump   examples/feel.wilios --format roll
+//    cargo run -- render examples/feel.wilios -o /tmp/feel.wav
+// ============================================================
+
+import "../lib/lib.wilios"
+
+let riff = func(root) {
+    // bar 1-2 : the call, with a quarter-note triplet answering it
+    <root> 1/8  <transpose(root, 3)> 1/8   <transpose(root, 5)> 1/4  rest 1/4
+    <transpose(root, 6)> 1/6  <transpose(root, 5)> 1/6  <transpose(root, 3)> 1/6
+    <root> 1/4  rest 1/2
+}
+
+let shuffle_tag = func(root) {
+    // bar 3-4 : a dotted-8th shuffle, exact under swing
+    <transpose(root, 7)> 1/8. <transpose(root, 6)> 1/16
+    <transpose(root, 5)> 1/8. <transpose(root, 3)> 1/16
+    <root> 1/2
+    <transpose(root, -2)> 1/4  <root> 1/4  rest 1/2
+}
+
+let comp2 = func(v) {
+    <v> 1/2  rest 1/8  <v> 3/8
+    <v> 1/1
+}
+
+// ---- LEAD ----
+track 1
+tempo 132
+swing 66
+time_signature 4/4
+volume 96
+pan -15
+trumpet()
+
+offset 1/64            // behind the beat for the first half
+riff(F4)
+shuffle_tag(F4)
+
+offset 0               // and right on it for the second
+riff(Bb4)
+shuffle_tag(F4)
+
+// ---- COMP ----  (dead on the beat throughout)
+track 2
+tempo 132
+swing 66
+time_signature 4/4
+volume 66
+pan 15
+comp_piano()
+comp2(<F2, A3, Eb4, G4>)      // F7   1 3 b7 9
+comp2(<F2, A3, Eb4, G4>)
+comp2(<Bb2, D3, Ab3, C4>)     // Bb7  1 3 b7 9
+comp2(<F2, A3, Eb4, G4>)

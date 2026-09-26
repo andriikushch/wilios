@@ -26,6 +26,7 @@ pub enum Token {
     FmRatio,
     FmDepth,
     Swing,
+    Offset,
     Cutoff,
     Resonance,
     Vibrato,

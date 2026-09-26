@@ -181,3 +181,50 @@ fn endless_loop_truncates_without_error() {
         "expected truncation near max_render_secs (30s), got {secs:.1}s"
     );
 }
+
+/// Onsets must land where the piece says, not on the mixer's buffer grid.
+///
+/// Before voices carried their own `Event::at`, every note was spawned at the
+/// start of whichever 1024-frame buffer it was scheduled in — 23.2 ms of
+/// quantisation, so this note sounded at 116.2 ms instead of 125.0.
+#[test]
+fn onsets_land_where_they_are_written() {
+    let s = src_to_samples(
+        "inv_onset.wilios",
+        // rest 1/16 at 120 bpm = 125 ms, deliberately off the buffer grid.
+        "track 1\ntempo 120\nswing 50\nrest 1/16\n<C4> 1/4\n",
+        opts(44_100, Some(1.0)),
+    );
+    let ch = s.channels as usize;
+    let first = s
+        .interleaved
+        .chunks(ch)
+        .position(|f| f.iter().any(|v| v.abs() > 0.001))
+        .expect("the note must sound");
+    let ms = first as f64 / s.sample_rate as f64 * 1000.0;
+    assert!(
+        (124.0..=127.0).contains(&ms),
+        "onset at {ms:.1} ms, expected ~125 ms (buffer-quantised would be 116.2)"
+    );
+}
+
+/// Two tracks reaching the same nominal position still sound together — the
+/// per-voice delay must not smear an unoffset ensemble.
+#[test]
+fn simultaneous_tracks_stay_sample_aligned() {
+    let s = src_to_samples(
+        "inv_align.wilios",
+        "tempo 120\ntrack 1\nrest 1/16\n<C4> 1/4\ntrack 2\nrest 1/16\n<C5> 1/4\n",
+        opts(44_100, Some(1.0)),
+    );
+    let ch = s.channels as usize;
+    let onsets: Vec<usize> = s
+        .interleaved
+        .chunks(ch)
+        .enumerate()
+        .filter(|(_, f)| f.iter().any(|v| v.abs() > 0.001))
+        .map(|(i, _)| i)
+        .take(1)
+        .collect();
+    assert_eq!(onsets.len(), 1, "expected a single shared onset");
+}

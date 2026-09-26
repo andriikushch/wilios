@@ -3,11 +3,25 @@
 ## How `swing` works here
 
 `swing N` (N = 50–100, any numeric expression — literal, variable, or
-arithmetic) applies to **8th-note pairs**:
-the on-beat (even slot) 8th is lengthened, the off-beat (odd slot) 8th is
-shortened, and the two always sum to the straight quarter. Quarter notes and
-anything longer are **unaffected**; notes shorter than an 8th pass through
-unchanged. Rests swing too, so the phase is preserved through a rest.
+arithmetic) applies to **8th-note pairs**: a note landing on the off-beat (odd
+slot) 8th is **displaced later**, and its sounding length becomes the gap to the
+next onset, so the pair plays long-short and still sums to the straight quarter.
+Nothing else is touched — downbeats, quarter notes, tuplets, dotted values and
+16ths all sound exactly as written under any feel, because swing never changes a
+written position or duration.
+
+To place a whole line behind or ahead of the beat — a soloist against a section
+that stays on top — use `offset`, a per-track duration:
+
+```wilios
+offset 1/64      // behind the beat (~35ms at 144bpm)
+offset -1/64     // ahead of it
+offset 0         // back on it
+let j = rand(-1, 1)
+offset j/64      // humanize, note to note
+```
+
+Worked demo: `examples/feel.wilios`.
 
 | `swing` | feel |
 |---------|------|

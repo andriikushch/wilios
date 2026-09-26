@@ -981,6 +981,87 @@ fn swing_from_a_non_numeric_variable_errors() {
 }
 
 #[test]
+fn swing_leaves_tuplets_and_dotted_values_exact() {
+    // The reason swing displaces onsets instead of rewriting durations: these
+    // used to be re-quantized to whole 8th slots, which mangled the note and
+    // drifted the bar. Quarter triplets and a dotted-8th shuffle must come out
+    // exactly as written, under a swung feel, with no guard.
+    let src = concat!(
+        "track 1\ntempo 120\nswing 67\n",
+        "<C4> 1/6 <D4> 1/6 <E4> 1/6\n", // quarter triplets: 333/334/333 ms
+        "<F4> 1/8. <G4> 1/16\n"         // shuffle: 375 + 125 ms
+    );
+    let events = interp_events(src);
+    let ms: Vec<u64> = events
+        .iter()
+        .map(|e| {
+            let EventKind::Note { duration, .. } = &e.kind;
+            *duration
+        })
+        .collect();
+    assert_eq!(ms, vec![333, 334, 333, 375, 125]);
+
+    // ...and the written positions are untouched, so the bar still adds up.
+    let last = events.last().unwrap();
+    let EventKind::Note { duration_beats, .. } = &last.kind;
+    assert_eq!(
+        last.at_beats + *duration_beats,
+        crate::time::Beats::new(3, 4),
+        "1/6*3 + 3/16 + 1/16 = 3/4 exactly"
+    );
+}
+
+#[test]
+fn swing_displaces_the_offbeat_without_moving_the_timeline() {
+    let src = "track 1\ntempo 120\nswing 67\n<C4> 1/8\n<D4> 1/8";
+    let events = interp_events(src);
+    assert_eq!(events[1].at, 335, "the off-beat 8th sounds late");
+    assert_eq!(
+        events[1].at_beats,
+        crate::time::Beats::new(1, 8),
+        "but it is still written on the 8th"
+    );
+}
+
+#[test]
+fn offset_moves_sound_not_position() {
+    // 1/64 at 120 bpm is 31.25 ms. `at` moves; `at_beats` must not, which is
+    // what keeps an offset track locked to the others.
+    let plain = interp_events("track 1\ntempo 120\n<C4> 1/4\n<D4> 1/4");
+    let late = interp_events("track 1\ntempo 120\noffset 1/64\n<C4> 1/4\n<D4> 1/4");
+    for (p, l) in plain.iter().zip(late.iter()) {
+        assert_eq!(p.at_beats, l.at_beats, "written position is unchanged");
+        assert_eq!(l.at, p.at + 31, "sounding time is 31 ms later");
+    }
+}
+
+#[test]
+fn offset_accepts_zero_negative_and_variables() {
+    // `offset 0` (back on the beat) and `offset -1/64` (ahead of it) are both
+    // outside the duration grammar's positive-only rule; a variable numerator is
+    // what makes an in-language humanize possible.
+    let src = concat!(
+        "let j = 1\ntrack 1\ntempo 120\n",
+        "offset -1/64\n<C4> 1/4\n", // ahead: clamps at 0 rather than underflowing
+        "offset 0\n<D4> 1/4\n",     // back on the beat
+        "offset j/64\n<E4> 1/4\n"   // from a variable
+    );
+    let events = interp_events(src);
+    assert_eq!(events[0].at, 0, "an early offset at bar 1 clamps to zero");
+    assert_eq!(events[1].at, 500, "`offset 0` is exactly on the beat");
+    assert_eq!(events[2].at, 1031, "a variable offset is 31 ms late");
+}
+
+#[test]
+fn offset_beyond_a_whole_note_is_an_error() {
+    let src = "track 1\ntempo 120\noffset 2/1\n<C4> 1/4";
+    let tokens = Lexer::new(src).lex().unwrap();
+    let program = Parser::new(tokens).parse().unwrap();
+    let mut interp = Interpreter::new(program).unwrap();
+    assert!(interp.schedule_until(0, 1_000_000_000).is_err());
+}
+
+#[test]
 fn swing_out_of_range_low_errors() {
     let src = "track 1\ntempo 120\nswing 49\n<C4> 1/4";
     let tokens = Lexer::new(src).lex().unwrap();
@@ -1002,17 +1083,18 @@ fn swing_out_of_range_high_errors() {
 
 #[test]
 fn swing_100_max_swing() {
-    // At swing 100: long_ms = round(500 * 1.0) = 500ms, short_ms = round(500 * 0.0) = 0ms
-    // First 8th starts at slot 0 (even) → 500ms; ctx.time → 500ms
-    // Second 8th starts at slot round(500/250)=2 (even) → also 500ms
-    // (At extreme swing the long note lands back on an even slot each time)
+    // The documented extreme: "on-beat takes the full quarter, off-beat = 0ms".
+    // The off-beat 8th is displaced all the way onto the next beat, so it has no
+    // room left to sound — a 1 ms floor keeps it a real (if inaudible) note
+    // rather than a zero-length one.
     let src = "track 1\ntempo 120\nswing 100\n<C4> 1/8\n<D4> 1/8";
     let events = interp_events(src);
     assert_eq!(events.len(), 2);
     let EventKind::Note { duration: d1, .. } = &events[0].kind;
     let EventKind::Note { duration: d2, .. } = &events[1].kind;
-    assert_eq!(*d1, 500);
-    assert_eq!(*d2, 500);
+    assert_eq!(*d1, 500, "the on-beat 8th takes the whole quarter");
+    assert_eq!(*d2, 1, "the off-beat 8th is pushed onto the next beat");
+    assert_eq!(events[1].at, 500, "...and sounds there");
 }
 
 #[test]

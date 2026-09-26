@@ -67,6 +67,7 @@ stmt            = rest_stmt
                 | fm_ratio_stmt
                 | fm_depth_stmt
                 | swing_stmt
+                | offset_stmt
                 | cutoff_stmt
                 | resonance_stmt
                 | vibrato_stmt
@@ -110,10 +111,18 @@ fm_ratio_stmt   = "fm_ratio" , numeric ;
 fm_depth_stmt   = "fm_depth" , numeric ;
 
 (* Swing feel — range [50, 100]; 50 = straight (default), 100 = maximum swing.
-   Accepts integer or float literals. Values outside [50, 100] are a runtime error.
-   Applied to 8th-note pairs: on-beat (even slot) is lengthened, off-beat shortened.
-   Quarter notes and larger values are unaffected; notes shorter than an 8th pass through unchanged. *)
+   Accepts a literal, a variable, or arithmetic over them (parsed at additive
+   binding power, so a following <note> is not read as a comparison).
+   Values outside [50, 100] are a runtime error. Applied to 8th-note pairs: a
+   note on an odd 8th slot is displaced later, and its sounding length becomes
+   the gap to the next onset. No written position or duration is ever changed,
+   so tuplets and dotted values stay exact under any feel. *)
 swing_stmt      = "swing" , numeric ;
+
+(* Placement — how far this track sounds behind (positive) or ahead (negative)
+   of where it is written. A duration, so it stays proportional across tempo
+   changes; "offset 0" returns to the beat. Only the sounding time moves. *)
+offset_stmt     = "offset" , [ "-" ] , ( duration | "0" ) ;
 
 (* Per-track tone shaping — accept only literal numeric values (like the legacy
    FM statements). `cutoff` is a resonant low-pass cutoff in Hz (default 20000,
@@ -300,7 +309,7 @@ comment         = "//" , { (* any character except newline *) } , newline ;
 
    Control:   track  global  loop  if  else  let  func  return
    Musical:   tempo  volume  pan   rest  time_signature
-   Synth:     wave  attack  decay  sustain  release  fm_ratio  fm_depth  swing  cutoff  resonance  vibrato
+   Synth:     wave  attack  decay  sustain  release  fm_ratio  fm_depth  swing  offset  cutoff  resonance  vibrato
    FM block:  fm     op     algorithm  level  ratio
    Waveforms: sine   square  saw  tri
    Import:    import
