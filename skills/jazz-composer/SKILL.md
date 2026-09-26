@@ -84,8 +84,11 @@ the exhaustive list with workarounds is in
 - **Swing is an 8th-note-pair feel.** `swing 60`–`72` ≈ medium jazz; range is
   50 (straight) to 100. It lengthens the on-beat 8th and shortens the off-beat
   8th; quarter notes and longer are untouched, notes shorter than an 8th pass
-  through. Set it per track — `swing` takes an expression, so `let feel = 63`
-  at global scope and `swing feel` in each track keeps one source of truth.
+  through: `swing` displaces the off-beat rather than rewriting durations, so
+  tuplets and dotted values stay exact under any feel. Set it per track —
+  `swing` takes an expression, so `let feel = 63` at global scope and
+  `swing feel` in each track keeps one source of truth. To put a line *behind*
+  the beat, use `offset 1/64` (per track, a duration; `offset 0` returns).
   `time_signature` only anchors the bar phase and
   is metadata — it does **not** change note lengths. Details:
   [`references/rhythm-and-feel.md`](references/rhythm-and-feel.md).

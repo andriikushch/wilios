@@ -72,6 +72,15 @@ pub enum Stmt {
     FmRatio(Expr),
     FmDepth(Expr),
     Swing(Expr),
+    /// Push this track's *sounding* time off its written time — behind the beat
+    /// (positive) or ahead of it (negative). A duration, so it stays musically
+    /// proportional across tempo changes; `offset 0` returns to the beat.
+    /// Only `Event::at` moves: `at_beats` stays nominal, so tracks still end
+    /// together.
+    Offset {
+        duration: Duration,
+        negative: bool,
+    },
     /// Per-track resonant low-pass filter cutoff, in Hz.
     Cutoff(Expr),
     /// Per-track filter resonance, 0..1.

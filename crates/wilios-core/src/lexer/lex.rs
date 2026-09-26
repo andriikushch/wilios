@@ -351,6 +351,7 @@ impl Lexer {
             "fm_ratio" => Some(Token::FmRatio),
             "fm_depth" => Some(Token::FmDepth),
             "swing" => Some(Token::Swing),
+            "offset" => Some(Token::Offset),
             "cutoff" => Some(Token::Cutoff),
             "resonance" => Some(Token::Resonance),
             "vibrato" => Some(Token::Vibrato),

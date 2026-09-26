@@ -156,58 +156,65 @@ rest 1/8         // on-beat rest → 335ms; next note lands on off-beat
 
 Both integer and float literals are accepted: `swing 67` and `swing 67.0` are equivalent.
 
-#### What swing does to a duration
+#### What swing does, exactly
 
-At `swing > 50` every note and rest of `1/8` or longer is re-expressed as a whole
-number of 8th-note slots — `round(duration / (1/8))` of them — taken alternately
-**long, short, long, …** starting from the slot its own position falls on. The
-swung value is what advances the track position, so this decides where the next
-note starts as well as how long this one sounds.
+Swing **displaces onsets**; it does not change any written value. A note whose
+bar-relative position lands exactly on an odd 8th-note slot sounds
+`(swing/100 - 1/2)` of a quarter late, and its sounding length is simply the gap
+to the next onset — so a pair still comes out long-short, at `swing 67` and
+120 bpm the familiar 335 ms + 165 ms.
 
-Three consequences, in the order they bite:
-
-1. **A duration that is an exact multiple of `1/8` keeps the grid.** Individual
-   notes stretch and shrink — that is the feel — and every full bar still adds up
-   exactly, because a 4/4 bar is 8 slots = 4 long + 4 short. An even slot span
-   (quarter, half, whole) comes out exactly as written; an **odd** span is
-   redistributed and plays slightly long, with the next note absorbing the
-   difference. At `swing 67`, `<C4> 1/4.` (3 slots) plays 1.67 beats, not 1.5,
-   and the `1/8` after it plays 0.33 — which is the intended long-short feel.
-
-2. **A duration that is not a multiple of `1/8` is re-quantized, and the bar
-   drifts.** A dotted 8th (`1/8.` = `3/16`, 1.5 slots) rounds up to 2 slots and
-   plays a **full beat**; a quarter-note triplet (`1/6`, 1.33 slots) rounds down
-   to 1. The classic shuffle figure `<E4> 1/8. <F4> 1/16` comes out a beat and a
-   quarter long, so the bar no longer totals 4 beats and tracks that started
-   together end apart.
-
-3. **A duration shorter than `1/8` passes through untouched** (`1/16`, `1/12`,
-   `1/32`), but it leaves the position off the slot grid, so the *next* note's
-   long/short assignment is read from the wrong slot.
-
-**The guard pattern.** Where fine values are wanted under a swung feel, straighten
-the feel for them and restore it. Quarter triplets and grace notes are played even
-anyway, so nothing musical is lost:
+Everything else is left alone. A position that is not an exact odd 8th — a
+downbeat, a `1/6` quarter triplet, a `1/8.` dotted eighth, a 16th — is not
+displaced, so it plays exactly as written under any feel:
 
 ```wilios
-let feel = 63
-
-let trip = func(a, b, c) {         // quarter-note triplet
-    swing 50
-    <a> 1/6 <b> 1/6 <c> 1/6        // exact; the three total one half note
-    swing feel
-}
-
-let scoop = func(from, to) {       // grace note into a target
-    swing 50
-    <from> 1/16  <to> 3/16         // exact; the pair totals one beat
-    swing feel
-}
+tempo 120
+swing 67
+<C4> 1/6 <D4> 1/6 <E4> 1/6    // 333 + 334 + 333 ms — an exact quarter triplet
+<F4> 1/8. <G4> 1/16           // 375 + 125 ms — an exact shuffle
 ```
 
-The guarded run must itself total a whole number of 8th slots (both of these
-total 2 slots per beat), or everything after it lands off the grid.
-`examples/all_of_me_swung.wilios` uses both.
+`nominal_position` never moves, whatever the feel. Two tracks at different swing
+settings still reach the same written position at the same written time, bars
+always add up, and `smoke`'s equal-length check is unaffected. (Earlier versions
+swung by rewriting durations, which re-quantized anything that was not a whole
+multiple of `1/8` and drifted the bar; the `swing 50` guard that used to be
+needed around tuplets is gone.)
+
+### Offset
+
+Puts a track behind or ahead of the beat — the thing a swing setting cannot
+express, because it applies to *every* note of the track rather than the
+off-beats.
+
+```
+offset duration      // behind the beat
+offset -duration     // ahead of it
+offset 0             // back on it
+```
+
+The amount is a duration rather than a time, so it stays musically proportional
+when the tempo changes, and it accepts the same variable form notes do:
+
+```wilios
+track 1
+tempo 144
+offset 1/64          // ~35 ms behind at this tempo
+<C5> 1/4 <D5> 1/4
+
+let j = rand(-1, 1)
+offset j/64          // humanize: jitter the placement note to note
+<E5> 1/4
+
+offset 0             // back on the beat
+<F5> 1/4
+```
+
+Like swing, it moves only when a note **sounds**: `Event::at` shifts while
+`at_beats` stays written, so an offset track cannot drift away from the others.
+A negative offset at the very start of a piece clamps to zero rather than
+sounding before it. Beyond one whole note either side it is a runtime error.
 
 ### Time Signature
 

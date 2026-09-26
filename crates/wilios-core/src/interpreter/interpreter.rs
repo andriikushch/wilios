@@ -87,6 +87,10 @@ pub struct TrackContext {
     pub fm_depth: f32,
     pub fm_block: Option<FmBlockConfig>,
     pub swing: f32,
+    /// Sounding time minus written time — see `Stmt::Offset`. Applied to
+    /// `Event::at` only; `nominal_position` never moves, so offsetting a track
+    /// cannot drift it away from the others.
+    pub offset: Beats,
     /// Per-track resonant low-pass filter. `cutoff_hz` defaults to 20000 (open);
     /// `resonance` is 0..1.
     pub cutoff_hz: f32,
@@ -372,6 +376,7 @@ impl Interpreter {
                 fm_depth: 0.0,
                 fm_block: None,
                 swing: 50.0,
+                offset: Beats::from_integer(0),
                 cutoff_hz: 20_000.0,
                 resonance: 0.0,
                 vibrato_depth_cents: 0.0,
@@ -563,7 +568,15 @@ impl Interpreter {
         match stmt {
             Stmt::Chord { duration, pitches } => {
                 let dur_beats = Self::eval_duration_beats(duration, ctx)?;
-                let (swung_beats, dur_ms) = Self::apply_swing_beats(dur_beats, ctx)?;
+                // Written position and length are authoritative; `swing` and
+                // `offset` only decide when it *sounds*. The sounding length is
+                // the gap between this onset and the next, so a swung pair still
+                // comes out long-short without either value leaving the grid.
+                let at_ms = Self::sounding_ms_at(ctx, ctx.nominal_position)?;
+                let end_beats = time::checked_add(ctx.nominal_position, dur_beats, "note end")?;
+                let dur_ms = Self::sounding_ms_at(ctx, end_beats)?
+                    .saturating_sub(at_ms)
+                    .max(1);
 
                 if ctx.time < until_ms {
                     let mut resolved: Vec<Pitch> = Vec::new();
@@ -581,13 +594,13 @@ impl Interpreter {
                     }
                     for pitch in resolved {
                         out.push(Event {
-                            at: ctx.time,
+                            at: at_ms,
                             at_beats: ctx.nominal_position,
                             track: ctx.track_id,
                             kind: EventKind::Note {
                                 pitch,
                                 duration: dur_ms,
-                                duration_beats: swung_beats,
+                                duration_beats: dur_beats,
                                 volume: ctx.volume,
                                 pan: ctx.pan,
                                 waveform: ctx.waveform.clone(),
@@ -608,7 +621,7 @@ impl Interpreter {
                     }
                 }
                 ctx.nominal_position =
-                    time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
+                    time::checked_add(ctx.nominal_position, dur_beats, "advance position")?;
                 ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
                 tracing::debug!(
                     track = ctx.track_id,
@@ -620,9 +633,8 @@ impl Interpreter {
             }
             Stmt::Rest { duration } => {
                 let dur_beats = Self::eval_duration_beats(duration, ctx)?;
-                let (swung_beats, _dur_ms) = Self::apply_swing_beats(dur_beats, ctx)?;
                 ctx.nominal_position =
-                    time::checked_add(ctx.nominal_position, swung_beats, "advance position")?;
+                    time::checked_add(ctx.nominal_position, dur_beats, "advance position")?;
                 ctx.time = ctx.tempo_history.ms_at(ctx.nominal_position)?;
                 tracing::debug!(
                     track = ctx.track_id,
@@ -755,6 +767,37 @@ impl Interpreter {
                     )));
                 }
                 ctx.swing = val;
+                Ok(false)
+            }
+            Stmt::Offset { duration, negative } => {
+                let beats = match Self::eval(&duration.beats, ctx)? {
+                    Value::Int(v) => v,
+                    _ => return Err(RuntimeError("offset beats must be int".into())),
+                };
+                let division = match Self::eval(&duration.division, ctx)? {
+                    Value::Int(v) => v,
+                    _ => return Err(RuntimeError("offset division must be int".into())),
+                };
+                let context = format!(
+                    "track {} offset {}{}/{}{}",
+                    ctx.track_id,
+                    if *negative { "-" } else { "" },
+                    beats,
+                    division,
+                    if duration.dotted { "." } else { "" }
+                );
+                let magnitude =
+                    time::beats_from_offset(beats, division, duration.dotted, &context)?;
+                let value = if *negative { -magnitude } else { magnitude };
+                // A whole note either way is far past any playable feel; beyond
+                // that it is a mistake, not an intention.
+                let limit = Beats::from_integer(1);
+                if value > limit || value < -limit {
+                    return Err(RuntimeError(format!(
+                        "offset: {value} is beyond one whole note either side of the beat"
+                    )));
+                }
+                ctx.offset = value;
                 Ok(false)
             }
             Stmt::Cutoff(expr) => {
@@ -995,53 +1038,50 @@ impl Interpreter {
         }
     }
 
-    /// Swing rules from `doc/synthesis.md`, re-derived from exact beats instead of ms so
-    /// slot parity can't be misclassified by ms-side rounding. Returns the duration in
-    /// both beats (`nominal_position`/`Event.duration_beats`) and ms (`Event.duration`).
-    fn apply_swing_beats(
-        duration_beats: Beats,
-        ctx: &TrackContext,
-    ) -> Result<(Beats, u64), RuntimeError> {
-        let bpm = ctx.tempo.bpm;
-        let eighth_beats = Beats::new(1, 8);
-        if (ctx.swing - 50.0).abs() < f32::EPSILON || bpm == 0 || duration_beats < eighth_beats {
-            let ms = time::beats_delta_to_ms(duration_beats, bpm)?;
-            return Ok((duration_beats, ms));
+    /// How far a note at `pos` is pushed off its written time by `swing`.
+    ///
+    /// Only a position that lands *exactly* on an odd 8th-note slot of the bar
+    /// is displaced, by `(swing/100 - 1/2)` of a quarter; everything else —
+    /// downbeats, triplets, dotted values, 16ths — is left alone. Swing never
+    /// touches `nominal_position`, so no duration is re-quantized and no bar
+    /// can drift.
+    fn swing_displacement(ctx: &TrackContext, pos: Beats) -> Result<Beats, RuntimeError> {
+        let zero = Beats::from_integer(0);
+        if (ctx.swing - 50.0).abs() < f32::EPSILON {
+            return Ok(zero);
         }
-
-        let quarter_beats = Beats::new(1, 4);
-        // 3-decimal precision on the ratio reproduces every existing swing test exactly.
-        let swing_ratio = Beats::new((ctx.swing as f64 * 1000.0).round() as i64, 100_000);
-        let long_beats = time::checked_mul(quarter_beats, swing_ratio, "swing long slot")?;
-        // Exact complement of `long`, not independently from `1 - ratio` — guarantees
-        // long+short == quarter_beats exactly, so quarter+ notes are truly unaffected.
-        let short_beats = time::checked_sub(quarter_beats, long_beats, "swing short slot")?;
-
-        let bar_len_beats = Beats::new(
+        let eighth = Beats::new(1, 8);
+        let bar_len = Beats::new(
             ctx.time_signature.numerator as i64,
             ctx.time_signature.denominator as i64,
         );
-        let position_since_epoch = time::checked_sub(
-            ctx.nominal_position,
-            ctx.bar_epoch_beats,
-            "swing bar position",
-        )?;
-        let position_in_bar =
-            time::rem_euclid(position_since_epoch, bar_len_beats, "swing bar position")?;
-        let start_slot = time::round_half_up(position_in_bar / eighth_beats);
-        let num_slots = time::round_half_up(duration_beats / eighth_beats);
-
-        let mut swung_beats = Beats::from_integer(0);
-        for i in 0..num_slots {
-            let slot_beats = if (start_slot + i).is_multiple_of(2) {
-                long_beats
-            } else {
-                short_beats
-            };
-            swung_beats = time::checked_add(swung_beats, slot_beats, "swing sum")?;
+        let since_epoch = time::checked_sub(pos, ctx.bar_epoch_beats, "swing bar position")?;
+        let in_bar = time::rem_euclid(since_epoch, bar_len, "swing bar position")?;
+        let slots = in_bar / eighth;
+        if !slots.is_integer() || slots.to_integer() % 2 == 0 {
+            return Ok(zero);
         }
-        let ms = time::beats_delta_to_ms(swung_beats, bpm)?;
-        Ok((swung_beats, ms))
+        // 3-decimal precision on the ratio, as the duration-based version used.
+        let ratio = Beats::new((ctx.swing as f64 * 1000.0).round() as i64, 100_000);
+        let long = time::checked_mul(Beats::new(1, 4), ratio, "swing long slot")?;
+        Ok(time::checked_sub(long, eighth, "swing displacement")?)
+    }
+
+    /// Where a note at `pos` should *sound*: its written ms, displaced by
+    /// `swing` and by the track's `offset`. `nominal_position` is untouched, so
+    /// this changes audible placement without moving the piece's timeline.
+    fn sounding_ms_at(ctx: &TrackContext, pos: Beats) -> Result<u64, RuntimeError> {
+        let zero = Beats::from_integer(0);
+        let swing = Self::swing_displacement(ctx, pos)?;
+        if swing == zero && ctx.offset == zero {
+            return Ok(ctx.tempo_history.ms_at(pos)?);
+        }
+        let shifted = time::checked_add(pos, swing, "swing position")?;
+        let shifted = time::checked_add(shifted, ctx.offset, "offset position")?;
+        if shifted <= zero {
+            return Ok(0); // an early offset at the top of the piece
+        }
+        Ok(ctx.tempo_history.ms_at(shifted)?)
     }
 
     fn eval_duration_beats(

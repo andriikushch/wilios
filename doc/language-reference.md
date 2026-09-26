@@ -356,7 +356,7 @@ pan 127     // hard right
 
 #### Swing
 
-Apply a swing rhythmic feel to 8th-note pairs. The on-beat (even) 8th is lengthened; the off-beat (odd) 8th is shortened. Durations of `1/8` or longer are re-expressed as a whole number of 8th-note slots, so a value that is **not** a multiple of `1/8` (a dotted 8th, a `1/6` quarter triplet) is re-quantized and the bar drifts — guard those with `swing 50` and restore the feel after. Notes shorter than an 8th pass through unchanged. See [synthesis.md — What swing does to a duration](synthesis.md#what-swing-does-to-a-duration). Accepts a literal, a variable, or arithmetic over them (unlike literal-only `tempo`/`volume`/`pan`). The value is parsed at additive binding power so that a following note is not swallowed as a comparison — `swing 50 <C4> 1/8` on one line is a feel and then a note; parenthesise if a comparison is ever intended. The on-beat/off-beat slot count resets at the start of every bar (see [Time Signature](#time-signature) below) — the first note of each bar is always on-beat.
+Apply a swing rhythmic feel to 8th-note pairs. A note landing exactly on an odd 8th-note slot of the bar is **displaced** later by `(swing/100 - 1/2)` of a quarter; its sounding length becomes the gap to the next onset, so a pair plays long-short. Nothing else moves — downbeats, `1/6` triplets, dotted eighths and 16ths all sound exactly as written under any feel, and no written position or duration is ever changed, so bars always add up. Accepts a literal, a variable, or arithmetic over them (unlike literal-only `tempo`/`volume`/`pan`). The value is parsed at additive binding power so that a following note is not swallowed as a comparison — `swing 50 <C4> 1/8` on one line is a feel and then a note; parenthesise if a comparison is ever intended. The on-beat/off-beat slot count resets at the start of every bar (see [Time Signature](#time-signature) below).
 
 ```
 swing numeric_expr
@@ -367,11 +367,30 @@ Valid range: `50` (straight, default) to `100` (maximum swing). Values outside t
 ```wilios
 tempo 120
 swing 67     // classic jazz swing: 8ths play as 335ms + 165ms
-<C4> 1/8    // on-beat → 335ms
-<D4> 1/8    // off-beat → 165ms
-<E4> 1/4    // quarter note → 500ms (always unchanged)
+<C4> 1/8    // on-beat → sounds at 0ms, 335ms long
+<D4> 1/8    // off-beat → displaced to 335ms, 165ms long
+<E4> 1/4    // quarter note → 500ms, never displaced
 
 swing 50     // back to straight
+```
+
+#### Offset
+
+Put this track behind the beat, or ahead of it — a per-track placement that swing cannot express, since it applies to every note rather than only the off-beats. The amount is a **duration**, so it stays proportional across tempo changes, and it takes the same variable form notes do (`offset j/64`). `offset 0` returns to the beat.
+
+```
+offset duration | -duration | 0
+```
+
+Only the sounding time moves: `Event.at` shifts while `at_beats` stays written, so an offset track still ends with the others. A negative offset at the start of a piece clamps to zero; beyond one whole note either side is a runtime error.
+
+```wilios
+track 1
+tempo 144
+offset 1/64      // ~35ms behind the beat
+<C5> 1/4
+offset 0         // back on it
+<D5> 1/4
 ```
 
 See [synthesis.md — Swing](synthesis.md#swing) for a detailed description and examples.

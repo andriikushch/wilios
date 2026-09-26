@@ -126,7 +126,9 @@ Effort: **S** < 1 day · **M** a few days · **L** 1–2 weeks+.
 > Per-note overrides are already listed as pending in `CLAUDE.md`.
 
 - [ ] **P1 / M — Per-note velocity / accent / ghost / articulation.**
-- [ ] **P1 / M — `humanize`** (timing + velocity jitter), per-track laid-back / on-top feel.
+- [x] **P1 / M — `humanize`** (timing jitter) and per-track laid-back / on-top
+      feel — shipped as `offset` (§8): `let j = rand(-1, 1)` … `offset j/64`.
+      Velocity jitter still needs seeded `rand` to be reproducible.
 - [ ] **P1 / S — Seeded, constrained randomness:** `seed 42`, `rand_note(scale)`,
       weighted choice. Raw `rand(min, max)` ints are not musical, and runs aren't
       reproducible.
@@ -208,9 +210,52 @@ Effort: **S** < 1 day · **M** a few days · **L** 1–2 weeks+.
 
 ---
 
+## 8. Micro-timing and feel — **done**, in the language
+
+> Friction: `swing` was one knob that rewrote durations, so the two things that
+> most separate a performance from a sequence were impossible — a soloist behind
+> the beat while the section stays on top, and a swing ratio per phrase — and any
+> value that was not a whole multiple of `1/8` was silently re-quantized. A
+> Python generator (`tools/gridgen.py`) worked around it by rewriting pieces onto
+> an integer grid at `swing 50`; it has been deleted, because every one of its
+> silent failure modes (tempo changes dropped, 4/4 only, mid-phrase presets and
+> tone settings lost, `rand` frozen to one take, control flow flattened) came
+> from running *after* the interpreter had flattened the piece.
+
+- [x] **P0 / S — Onsets land where they are written.** Voices carried no time of
+      their own: `drain_new_voices` spawned each at the start of whichever
+      1024-frame buffer it was scheduled in, 23.2 ms of quantisation on every
+      note in every piece (a note written at 125.0 ms sounded at 116.2). Voices
+      now carry a sub-buffer delay and wait in `VoiceScheduler` for their buffer.
+      Regression test in `crates/wilios-render/tests/render_invariants.rs`.
+- [x] **P1 / S — `offset`**: a per-track duration that puts a line behind the
+      beat (`offset 1/64`), ahead of it (`offset -1/64`) or back on it
+      (`offset 0`), taking the same variable form notes do so `offset j/64`
+      humanizes. Only `Event::at` moves; `at_beats` stays written, so an offset
+      track cannot drift from the others.
+- [x] **P1 / M — `swing` displaces onsets instead of rewriting durations.**
+      Tuplets, dotted values and 16ths are now exact under any feel, the bar
+      always adds up, and the `swing 50` guard pattern is gone.
+- [x] **P1 / M — `humanize`** — no engine work needed once `offset` takes a
+      variable: `let j = rand(-1, 1)` … `offset j/64`. (§4's entry.)
+
+What is left:
+
+- [ ] **P2 / M — A `groove` statement.** An offset table per 8th slot
+      (`groove [0, 1/64, 0, 1/32]`) applied to a track, so a groove is declared
+      once rather than written as an `offset` before every note — this is what a
+      DAW's groove quantize is, and the machinery now exists under it.
+- [ ] **P1 / S — Seeded `rand`** (already listed in §4) so an in-language
+      humanize renders the same twice.
+
+Worked demo: `examples/feel.wilios`.
+
 ## Quick wins (do first)
 
 1. ~~`wilios render` to WAV + `wilios dump` (§1)~~ — **done**; unblocked the rest.
 2. ~~Allow `func` → `func` calls (§2)~~ — **done**; removed the most awkward language limitation.
 3. `lib/theory.wilios` (§5) — pure library, ships without engine changes.
 4. ~~A `wilios` authoring skill (§7)~~ — **done** as `skills/jazz-composer/`.
+5. ~~Micro-timing and feel (§8)~~ — **done** in the engine: sample-accurate
+   onsets, `offset`, and swing as displacement. What remains there is a `groove`
+   statement and seeded `rand`.
