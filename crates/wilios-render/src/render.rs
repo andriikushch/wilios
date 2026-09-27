@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use wilios_core::interpreter::interpreter::Interpreter;
 use wilios_synth::{Mixer, Voice};
 
-use crate::voices::drain_new_voices;
+use crate::voices::VoiceScheduler;
 
 pub const DEFAULT_SAMPLE_RATE: u32 = 44_100;
 /// When no `--duration` is given, a piece that hasn't finished by this many
@@ -149,6 +149,7 @@ pub fn render_to_samples_with_progress(
     let mut mixer = Mixer::new(sr, CHANNELS as usize);
     let mut scratch = vec![0f32; FRAMES * CHANNELS as usize];
     let mut voices: Vec<Voice> = Vec::new();
+    let mut scheduler = VoiceScheduler::new();
     let mut samples: Vec<f32> = Vec::new();
     let mut sample_counter: u64 = 0;
     let finished;
@@ -162,10 +163,12 @@ pub fn render_to_samples_with_progress(
             _ => FRAMES,
         };
 
-        let buffer_end_ms = ((sample_counter + frames_this_buffer as u64) as f64
-            / opts.sample_rate as f64
-            * 1000.0) as u64;
-        drain_new_voices(&mut interp, buffer_end_ms, sr, &mut voices).map_err(|e| e.0)?;
+        let ms_at = |frames: u64| (frames as f64 / opts.sample_rate as f64 * 1000.0) as u64;
+        let buffer_start_ms = ms_at(sample_counter);
+        let buffer_end_ms = ms_at(sample_counter + frames_this_buffer as u64);
+        scheduler
+            .drain_new_voices(&mut interp, buffer_start_ms, buffer_end_ms, sr, &mut voices)
+            .map_err(|e| e.0)?;
 
         for s in scratch.iter_mut() {
             *s = 0.0;

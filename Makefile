@@ -68,6 +68,7 @@ smoke:
 	cargo run -q -- smoke examples/blues_from_lib.wilios
 	cargo run -q -- smoke examples/bossa_from_lib.wilios
 	cargo run -q -- smoke examples/modal_from_lib.wilios
+	cargo run -q -- smoke examples/feel.wilios
 
 grammar:
 	python3 tools/gen_grammar.py

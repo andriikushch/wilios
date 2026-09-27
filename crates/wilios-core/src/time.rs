@@ -130,6 +130,26 @@ pub fn rem_euclid(a: Beats, m: Beats, context: &str) -> Result<Beats, TimeError>
 }
 
 /// A DSL duration (`beats`/`division`) as an exact `Beats` value in whole-note units, `* 3/2` if dotted.
+/// Like [`beats_from_duration`], but for a *placement* rather than a length:
+/// zero and negative values are meaningful (`offset 0` is back on the beat,
+/// `offset -1/64` is ahead of it), so the positivity guard does not apply.
+pub fn beats_from_offset(
+    beats: i64,
+    division: i64,
+    dotted: bool,
+    context: &str,
+) -> Result<Beats, TimeError> {
+    if division == 0 {
+        return Err(TimeError::ZeroDivision);
+    }
+    let base = reduce_and_pack(beats as i128, division as i128, context)?;
+    if dotted {
+        checked_mul(base, Ratio::new(3, 2), context)
+    } else {
+        Ok(base)
+    }
+}
+
 pub fn beats_from_duration(
     beats: i64,
     division: i64,

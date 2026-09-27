@@ -144,6 +144,10 @@ fn walk_stmt(stmt: &Stmt, scope: &HashSet<Ident>, ctx: &WalkCtx, out: &mut Vec<D
             walk_expr(&duration.beats, scope, ctx, out);
             walk_expr(&duration.division, scope, ctx, out);
         }
+        Stmt::Offset { duration, .. } => {
+            walk_expr(&duration.beats, scope, ctx, out);
+            walk_expr(&duration.division, scope, ctx, out);
+        }
         Stmt::Attack(e)
         | Stmt::Decay(e)
         | Stmt::Sustain(e)

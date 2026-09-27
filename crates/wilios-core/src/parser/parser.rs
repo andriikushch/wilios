@@ -340,6 +340,7 @@ impl Parser {
             Some(Token::FmRatio) => self.parse_fm_param(Token::FmRatio).map(Some),
             Some(Token::FmDepth) => self.parse_fm_param(Token::FmDepth).map(Some),
             Some(Token::Swing) => self.parse_swing().map(Some),
+            Some(Token::Offset) => self.parse_offset().map(Some),
             Some(Token::Cutoff) => self.parse_tone_param(Token::Cutoff).map(Some),
             Some(Token::Resonance) => self.parse_tone_param(Token::Resonance).map(Some),
             Some(Token::Vibrato) => self.parse_vibrato().map(Some),
@@ -881,6 +882,35 @@ impl Parser {
             Token::FmDepth => Ok(Stmt::FmDepth(value)),
             _ => unreachable!(),
         }
+    }
+
+    /// Reads the placement after `offset`: an optional `-`, then a duration in
+    /// the same grammar notes use (so `offset j/64` can come from a variable),
+    /// or the bare literal `0` — which the duration grammar cannot spell, since
+    /// `beats_from_duration` requires a positive numerator.
+    fn parse_offset(&mut self) -> Result<Stmt, ParseError> {
+        self.next(); // consume `offset`
+        let line = self.current_pos().0;
+        let negative = if self.current_token() == Some(&Token::Minus) {
+            self.next();
+            true
+        } else {
+            false
+        };
+        if let Some(Token::Int(0)) = self.current_token() {
+            self.next();
+            return Ok(Stmt::Offset {
+                duration: Duration {
+                    beats: Expr::Int(0),
+                    division: Expr::Int(1),
+                    dotted: false,
+                    line,
+                },
+                negative: false,
+            });
+        }
+        let duration = self.parse_duration()?;
+        Ok(Stmt::Offset { duration, negative })
     }
 
     /// Reads the feel after `swing` — a literal, a variable, or arithmetic over

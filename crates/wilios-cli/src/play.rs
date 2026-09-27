@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use wilios_core::interpreter::interpreter::Interpreter;
 use wilios_synth::{Mixer, Voice};
 
-use crate::voices::drain_new_voices;
+use crate::voices::VoiceScheduler;
 
 /// Open the default output device and play `interp` in real time, returning when
 /// the piece finishes on its own or the user presses Enter.
@@ -31,6 +31,7 @@ pub fn play(interp: Interpreter) -> Result<(), String> {
 
     let mut mixer = Mixer::new(sample_rate, channels);
     let mut sample_counter: u64 = 0;
+    let mut scheduler = VoiceScheduler::new();
 
     let stream = device
         .build_output_stream(
@@ -42,11 +43,13 @@ pub fn play(interp: Interpreter) -> Result<(), String> {
                 // data.len() == frames * channels; we need frame count for correct timing.
                 let buffer_frames = (data.len() / channels) as u64;
                 // f64 to match the offline renderer and stay exact past ~6 min of playback.
-                let buffer_end_ms =
-                    ((sample_counter + buffer_frames) as f64 / sample_rate as f64 * 1000.0) as u64;
+                let ms_at = |frames: u64| (frames as f64 / sample_rate as f64 * 1000.0) as u64;
+                let buffer_start_ms = ms_at(sample_counter);
+                let buffer_end_ms = ms_at(sample_counter + buffer_frames);
                 // Live playback should not abort mid-stream on a scheduler error.
-                let _ = drain_new_voices(
+                let _ = scheduler.drain_new_voices(
                     &mut interpreter_cb,
+                    buffer_start_ms,
                     buffer_end_ms,
                     sample_rate,
                     &mut voices_lock,

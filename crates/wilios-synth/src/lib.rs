@@ -242,6 +242,10 @@ pub struct Voice {
     volume: f32,
     remaining_samples: u64,
     sample_rate: f32,
+    /// Samples of silence before the note speaks, so an onset can land inside a
+    /// buffer instead of on its boundary. Set by `delayed`; see
+    /// `wilios_render::voices::drain_new_voices`.
+    start_delay: u32,
 
     // Multi-op FM (Some = use multi-op path; None = use legacy path above)
     op_states: Option<Vec<OpState>>,
@@ -399,6 +403,7 @@ impl Voice {
                 release_ms: 0.0,
                 volume,
                 remaining_samples,
+                start_delay: 0,
                 sample_rate,
                 op_states: Some(ops),
                 algorithm_indices,
@@ -424,6 +429,7 @@ impl Voice {
                 release_ms,
                 volume,
                 remaining_samples,
+                start_delay: 0,
                 sample_rate,
                 op_states: None,
                 algorithm_indices: Vec::new(),
@@ -439,7 +445,20 @@ impl Voice {
         }
     }
 
+    /// Hold this voice silent for `samples` before it speaks.
+    pub fn delayed(mut self, samples: u32) -> Self {
+        self.start_delay = samples;
+        self
+    }
+
     pub fn next_sample(&mut self) -> f32 {
+        // Sub-buffer onset: stay silent (and keep every phase, envelope and LFO
+        // at its start) until the note is actually due.
+        if self.start_delay > 0 {
+            self.start_delay -= 1;
+            return 0.0;
+        }
+
         // Vibrato: one LFO evaluation per sample, applied as a frequency
         // multiplier to every oscillator so FM ratios are preserved. Skipped
         // entirely (and bit-identical to the old path) when depth is 0.
@@ -566,6 +585,9 @@ impl Voice {
     }
 
     pub fn finished(&self) -> bool {
+        if self.start_delay > 0 {
+            return false; // not started yet
+        }
         if let Some(ops) = &self.op_states {
             self.remaining_samples == 0 && ops.iter().all(|o| o.env.finished())
         } else {
