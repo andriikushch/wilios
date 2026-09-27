@@ -41,7 +41,7 @@ behind the beat (or ahead of it) — a soloist against a section that stays on t
 moving where it is written:
 
 ```wilios
-offset 1/64      // behind the beat; ~35ms at 144bpm
+offset 1/64      // behind the beat; ~26ms at 144bpm
 offset -1/64     // ahead of it
 offset 0         // back on it
 let j = rand(-1, 1)

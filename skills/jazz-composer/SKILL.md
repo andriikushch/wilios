@@ -82,7 +82,7 @@ the exhaustive list with workarounds is in
   `track` block.
 
 - **Swing is an 8th-note-pair feel.** `swing 60`–`72` ≈ medium jazz; range is
-  50 (straight) to 100. It lengthens the on-beat 8th and shortens the off-beat
+  0 to 100, with 50 straight — below 50 is reverse swing (short-long). It lengthens the on-beat 8th and shortens the off-beat
   8th; quarter notes and longer are untouched, notes shorter than an 8th pass
   through: `swing` displaces the off-beat rather than rewriting durations, so
   tuplets and dotted values stay exact under any feel. Set it per track —

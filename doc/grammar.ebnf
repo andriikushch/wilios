@@ -110,7 +110,8 @@ release_stmt    = "release" , expr ;
 fm_ratio_stmt   = "fm_ratio" , numeric ;
 fm_depth_stmt   = "fm_depth" , numeric ;
 
-(* Swing feel — range [50, 100]; 50 = straight (default), 100 = maximum swing.
+(* Swing feel — range [0, 100]; 50 = straight (default), 100 = maximum forward
+   swing, 0 = maximum reverse (the off-beat pulled early, short-long).
    Accepts a literal, a variable, or arithmetic over them (parsed at additive
    binding power, so a following <note> is not read as a comparison).
    Values outside [50, 100] are a runtime error. Applied to 8th-note pairs: a

@@ -123,12 +123,14 @@ swing numeric_expr
 
 | Value | Effect |
 |-------|--------|
+| `0`  | Maximum reverse swing (the off-beat is pulled onto the beat) |
+| `33` | Reverse swing — short-long, the mirror of `67` |
 | `50` | Straight — equal 8th notes (default) |
 | `67` | Classic jazz/blues swing (~⅔ + ⅓ feel) |
 | `75` | Heavy swing |
 | `100` | Maximum swing (on-beat takes the full quarter, off-beat = 0ms) |
 
-Valid range: **50–100** (inclusive). Values outside this range are a runtime error.
+Valid range: **0–100** (inclusive). Values outside this range are a runtime error.
 
 ```wilios
 tempo 120
@@ -200,7 +202,7 @@ when the tempo changes, and it accepts the same variable form notes do:
 ```wilios
 track 1
 tempo 144
-offset 1/64          // ~35 ms behind at this tempo
+offset 1/64          // ~26 ms behind at this tempo
 <C5> 1/4 <D5> 1/4
 
 let j = rand(-1, 1)

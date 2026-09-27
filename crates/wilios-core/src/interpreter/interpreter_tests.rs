@@ -1063,12 +1063,41 @@ fn offset_beyond_a_whole_note_is_an_error() {
 
 #[test]
 fn swing_out_of_range_low_errors() {
-    let src = "track 1\ntempo 120\nswing 49\n<C4> 1/4";
+    let src = "track 1\ntempo 120\nswing -1\n<C4> 1/4";
     let tokens = Lexer::new(src).lex().unwrap();
     let program = Parser::new(tokens).parse().unwrap();
     let mut interp = Interpreter::new(program).unwrap();
     let result = interp.schedule_until(0, 1_000_000_000);
-    assert!(result.is_err(), "swing 49 should be a RuntimeError");
+    assert!(result.is_err(), "swing -1 should be a RuntimeError");
+}
+
+#[test]
+fn swing_below_50_is_reverse_swing() {
+    // Below 50 the displacement is negative: the off-beat 8th is pulled *early*,
+    // giving short-long — the mirror of the same distance above 50, and what a
+    // DAW swing knob does below its centre.
+    let fwd = interp_events("track 1\ntempo 120\nswing 67\n<C4> 1/8\n<D4> 1/8");
+    let rev = interp_events("track 1\ntempo 120\nswing 33\n<C4> 1/8\n<D4> 1/8");
+    let ms = |e: &crate::interpreter::event::Event| {
+        let EventKind::Note { duration, .. } = &e.kind;
+        *duration
+    };
+    assert_eq!(
+        (ms(&fwd[0]), ms(&fwd[1])),
+        (335, 165),
+        "swing 67: long-short"
+    );
+    assert_eq!(
+        (ms(&rev[0]), ms(&rev[1])),
+        (165, 335),
+        "swing 33: short-long"
+    );
+    assert_eq!(rev[1].at, 165, "the off-beat sounds early");
+    assert_eq!(
+        rev[1].at_beats,
+        crate::time::Beats::new(1, 8),
+        "but is still written on the 8th"
+    );
 }
 
 #[test]

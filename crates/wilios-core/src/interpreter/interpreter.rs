@@ -760,9 +760,9 @@ impl Interpreter {
                     Value::Float(f) => f,
                     _ => return Err(RuntimeError("swing: expected a numeric value".into())),
                 };
-                if !(50.0..=100.0).contains(&val) {
+                if !(0.0..=100.0).contains(&val) {
                     return Err(RuntimeError(format!(
-                        "swing: value {:.1} is out of range [50, 100]",
+                        "swing: value {:.1} is out of range [0, 100]",
                         val
                     )));
                 }

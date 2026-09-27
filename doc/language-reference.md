@@ -362,7 +362,7 @@ Apply a swing rhythmic feel to 8th-note pairs. A note landing exactly on an odd 
 swing numeric_expr
 ```
 
-Valid range: `50` (straight, default) to `100` (maximum swing). Values outside this range are a runtime error.
+Valid range: `0` to `100`, with `50` straight (the default). Above 50 the off-beat is displaced late (long-short, the jazz feel); below 50 it is pulled early (short-long — the Scotch snap, and what a DAW swing knob does below its centre). Values outside the range are a runtime error.
 
 ```wilios
 tempo 120
@@ -387,7 +387,7 @@ Only the sounding time moves: `Event.at` shifts while `at_beats` stays written, 
 ```wilios
 track 1
 tempo 144
-offset 1/64      // ~35ms behind the beat
+offset 1/64      // ~26ms behind the beat at 144bpm
 <C5> 1/4
 offset 0         // back on it
 <D5> 1/4

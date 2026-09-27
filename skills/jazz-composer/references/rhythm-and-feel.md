@@ -2,7 +2,7 @@
 
 ## How `swing` works here
 
-`swing N` (N = 50–100, any numeric expression — literal, variable, or
+`swing N` (N = 0–100, any numeric expression — literal, variable, or
 arithmetic) applies to **8th-note pairs**: a note landing on the off-beat (odd
 slot) 8th is **displaced later**, and its sounding length becomes the gap to the
 next onset, so the pair plays long-short and still sums to the straight quarter.
@@ -14,7 +14,7 @@ To place a whole line behind or ahead of the beat — a soloist against a sectio
 that stays on top — use `offset`, a per-track duration:
 
 ```wilios
-offset 1/64      // behind the beat (~35ms at 144bpm)
+offset 1/64      // behind the beat (~26ms at 144bpm; 1/48 is ~35ms)
 offset -1/64     // ahead of it
 offset 0         // back on it
 let j = rand(-1, 1)
