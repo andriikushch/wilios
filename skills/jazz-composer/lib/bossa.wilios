@@ -4,13 +4,15 @@
 //  import "<rel>/skills/jazz-composer/lib/bossa.wilios"
 //
 //  STYLE NOTES  (copy the settings into every track)
-//    Tempo   120-170     swing 50 — STRAIGHT 8ths, do NOT swing     meter 4/4
-//    Presets lead brass/epiano ; comp epiano (rootless, gentle) ;
-//            bass on root-5th ; hihat_c soft
-//    Form    32-bar AABA or 16-bar
-//    Devices clave-derived comp rhythm, bass on root/5th only, smooth
-//            maj7 / m7 / m7b5 harmony, legato singable melody, pan the
-//            comp slightly off-centre
+//    Tempo   110-160 (felt in 2)   swing 50 — STRAIGHT 8ths, do NOT swing   meter 4/4
+//    Presets lead brass (soft) / epiano ; comp comp_piano or epiano
+//            (nylon-guitar style, rootless, gentle) ; upright root-5th ;
+//            snare cross-stick clave, hihat_c soft 8ths, kick = surdo
+//    Form    32-bar AABA / ABAC common, but take the length from the tune
+//    Devices surdo bass (1, &2, 3, &4 anticipation), 3-2 bossa clave
+//            (1, &2, 4 | 2, &3), anticipated chord changes, maj7 / 6/9 /
+//            m7 / m7b5 plus colored dominants, singable melody resting on
+//            9ths/11ths/13ths, pan the comp slightly off-centre
 //
 //  Demo: examples/bossa_from_lib.wilios
 // ============================================================

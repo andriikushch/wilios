@@ -4,13 +4,17 @@
 //  import "<rel>/skills/jazz-composer/lib/bebop.wilios"
 //  (pulls in licks / comp / grooves and the FM presets transitively)
 //
-//  STYLE NOTES  (copy the settings into every track)
-//    Tempo   180-300      swing   60-66        meter  4/4
-//    Presets lead brass ; bass (or upright) ; drums ride + kick/snare
-//    Form    32-bar AABA (rhythm changes) or 12-bar blues; head-solos-head
-//    Devices fast harmonic motion (two chords/bar), continuous 8th-note
-//            lines, chromatic approach tones, enclosures, arpeggios
-//            through the 7th/9th, phrases that start and end off the beat
+//  STYLE NOTES  (tempo/meter on every track; swing per role —
+//               see references/styles.md)
+//    Tempo   160-320      swing   ride 55-66, lead 52-60   meter  4/4
+//    Presets lead brass ; upright walking ; drums ride/hihat_c time,
+//            hihat_c on 2 & 4, soft kick bombs, sparse snare
+//    Form    32-bar AABA (rhythm changes), 12-bar blues, contrafacts;
+//            head-solos-head
+//    Devices ii-V chains, tritone subs, continuous 8th-note lines with
+//            triplet turns, bebop scales, chromatic approach tones,
+//            enclosures, altered dominants, upper-structure arpeggios,
+//            phrases that start and end off the beat
 //
 //  Full model: examples/bebop_trio.wilios . Demo: examples/bebop_from_lib.wilios
 // ============================================================

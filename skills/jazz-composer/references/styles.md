@@ -19,7 +19,18 @@ named living musician.
    landing slightly behind the ride on downbeats and together with it on
    upbeats.
 
-So set swing per track: `ride` track higher, lead/comp tracks lower.
+So set swing per track: `ride` track higher, lead/comp tracks lower. Swing
+only moves off-beat onsets, so tracks with different `swing` values still share
+every downbeat and never drift (`tempo` and `time_signature` must still match).
+To also put the horn behind the ride, add a small `offset 1/64`–`1/48` on the
+lead track (see [`rhythm-and-feel.md`](rhythm-and-feel.md), demo
+`examples/feel.wilios`).
+
+"ride / drums" means the time-keeping track's role, not necessarily the `ride()`
+preset: its long tail piles up into a buzz at spang-a-lang density, so for a
+steady pattern keep its `volume` low or keep time on `hihat_c()` (as
+`examples/bebop_trio.wilios` and `examples/blues_f.wilios` do) and save `ride()`
+for sparser figures and accents.
 
 | Tempo (bpm) | ride / drums | lead, comp, bass |
 | ----------- | ------------ | ---------------- |
@@ -34,7 +45,7 @@ tempo range.
 ## Bebop
 
 - **Tempo** 160–320 (medium-up to very fast; ballads exist but are not the
-  signature) · **swing** ride 56–66, lead 52–60 (lower as tempo rises) ·
+  signature) · **swing** ride 55–66, lead 52–60 (lower as tempo rises) ·
   **meter** 4/4
 - **Presets** lead `brass` (often two horns in unison on the head); `upright`
   walking in 4; drums `ride` carries the time, `hihat_c` on 2 and 4, `kick`
@@ -57,7 +68,7 @@ tempo range.
 
 ## Cool jazz
 
-- **Tempo** 80–180 (mostly relaxed medium) · **swing** ride 64–70, lead 57–63 ·
+- **Tempo** 80–180 (mostly relaxed medium) · **swing** ride 62–72, lead 56–64 ·
   **meter** 4/4; the West Coast branch also experimented with 3/4 and odd
   meters (5/4, 9/8)
 - **Presets** lead `brass` with soft attack and low `volume`; a second horn
@@ -75,8 +86,8 @@ tempo range.
 
 - **Tempo** 60–260 (ballads to up-tempo; typical 120–220) · **swing** ride
   62–70, lead 56–62 · **meter** 4/4 (occasional 3/4)
-- **Presets** lead `brass` — two-horn front line (trumpet + tenor style)
-  harmonized in 3rds, 4ths or unison; comp `comp_piano` (acoustic piano — the
+- **Presets** two-horn front line on two tracks — `trumpet` on top, `brass`
+  (tenor role) below — harmonized in 3rds, 4ths or unison; comp `comp_piano` (acoustic piano — the
   Rhodes belongs to late-60s soul jazz and fusion, not classic hard bop);
   `upright` walking; drums `ride` + `hihat_c` on 2 and 4 + active `snare`
   comping, fills and press rolls. A snare backbeat on 2 and 4 is only for
@@ -105,7 +116,8 @@ tempo range.
   back), wide intervallic leaps, motivic rather than chord-by-chord
   improvisation, intensity built from register, density and rhythm because
   the harmony is static.
-- **Library** `import "skills/jazz-composer/lib/modal.wilios"` — `so_what_vamp` (quartal answer figure), `modal_pedal`, `dorian_frag`, plus `grooves.wilios`.
+- **Library** `import "skills/jazz-composer/lib/modal.wilios"` — `so_what_vamp`
+  (quartal answer figure), `modal_pedal`, `dorian_frag`, plus `grooves.wilios`.
   Demo: `examples/modal_from_lib.wilios`. See `idiom-library.md`.
 
 ## Post-bop
@@ -127,9 +139,11 @@ tempo range.
 
 ## Contemporary jazz
 
-- **Tempo** any · **swing** 50–60 (often straight, 8ths even) · **meter** odd
+- **Tempo** any · **swing** one value on all tracks, 50–60 (often straight,
+  8ths even) · **meter** odd
   and mixed, polymeter across tracks
-- **Presets** full palette; `marimba` and `strings` for texture; `saw`/`square` `wave` layers; custom `fm { }` patches
+- **Presets** full palette; `marimba` and `strings` for texture; `saw`/`square`
+  `wave` layers; custom `fm { }` patches
 - **Form** sectional, riff-plus-blowing, metric-modulation transitions
 - **Devices** odd-meter grooves with a stated grouping (`9/8 = 2+2+2+3`),
   intervallic (4ths/5ths) melody writing, dense or very sparse orchestration,
@@ -170,9 +184,10 @@ tempo range.
   `comp.wilios` (`bossa_comp2`). Demo: `examples/bossa_from_lib.wilios`. See
   `idiom-library.md`.
 
-```
+```wilios
 // bossa bass, one bar per chord (Fmaj7):
-// root on 1, 5th on &2 and 3, root on &4 (anticipates next bar)
+// root on 1, 5th on &2 and 3, root on &4 (anticipates next bar — on a chord
+// change it is the new root, tied over; drop the next bar's 1 for that sound)
 <F1> 3/8 <C2> 1/8 <C2> 3/8 <F1> 1/8
 <F1> 3/8 <C2> 1/8 <C2> 3/8 <F1> 1/8
 
@@ -183,7 +198,7 @@ tempo range.
 ## Blues (jazz blues)
 
 - **Tempo** 60–300 · **meter** 4/4 · **swing** by tempo:
-  - slow blues / shuffle, 60–100: 70–75 (12/8 feel)
+  - slow blues / shuffle, 60–100: ride 70–75, lead 62–66 (12/8 feel)
   - medium, 110–180: ride 64–70, lead 58–63
   - up-tempo, 200–300: ride 56–64, lead 52–58
 - **Presets** lead `brass`; comp `comp_piano`; `upright`; drums `ride` +
@@ -192,12 +207,13 @@ tempo range.
   `| I7 | IV7 | I7 | v-7 I7 | IV7 | #IVdim7 | I7 | VI7(b9) | ii-7 | V7 | I7 VI7 | ii-7 V7 |`
   - Bird blues: `| Imaj7 | viiø7 III7 | vi-7 II7 | v-7 I7 | IV7 | iv-7 bVII7 | iii-7 VI7 | biii-7 bVI7 | ii-7 | V7 | I VI7 | ii-7 V7 |`
     (in F: `| Fmaj7 | Em7b5 A7 | Dm7 G7 | Cm7 F7 | Bb7 | Bbm7 Eb7 | Am7 D7 | Abm7 Db7 | Gm7 | C7 | F D7 | Gm7 C7 |`)
-  - Minor blues: `| i-7 | i-7 | i-7 | i-7 | iv-7 | iv-7 | i-7 | i-7 | bVI7 | V7alt | i-7 | iiø V7alt |`
+  - Minor blues: `| i-7 | i-7 | i-7 | i-7 | iv-7 | iv-7 | i-7 | i-7 | bVI7 | V7alt | i-7 | iiø7 V7alt |`
 - **Devices** blue notes (b3, b5, b7 over the major chord), riff-and-answer
   head, `IV7` → `#IVdim7` → `I7/5` across bars 5–7, `v-7 I7` in bar 4 as a
   ii–V into IV, tritone-sub `bII7` in the turnaround, two-feel bass on the head
   and walking 4 for solos.
   Model: `examples/blues_f.wilios`.
-- **Library** `import "skills/jazz-composer/lib/blues.wilios"` — `blues_walk12` (a full 12-bar walking chorus), `blues_riff4` / `blues_riff_head`, plus
+- **Library** `import "skills/jazz-composer/lib/blues.wilios"` — `blues_walk12`
+  (a full 12-bar walking chorus), `blues_riff4` / `blues_riff_head`, plus
   `grooves.wilios`. Demo: `examples/blues_from_lib.wilios`. See
   `idiom-library.md`.

@@ -76,8 +76,10 @@ the exhaustive list with workarounds is in
   ```
 
 - **`tempo` is a literal int, and tempo/feel are per-track.** Every track must
-  repeat the **same** `tempo`, `swing`, and `time_signature`, or the tracks
-  drift apart. The repo-root examples `examples/blues_f.wilios` and
+  repeat the **same** `tempo` and `time_signature`, or the tracks drift apart.
+  `swing` must be restated too, but may differ by role (ride higher than the
+  lead — see [`references/styles.md`](references/styles.md)); it only moves
+  off-beat onsets, so it never causes drift. The repo-root examples `examples/blues_f.wilios` and
   `examples/bebop_trio.wilios` both restate `tempo` + `swing` in every
   `track` block.
 
@@ -87,7 +89,8 @@ the exhaustive list with workarounds is in
   through: `swing` displaces the off-beat rather than rewriting durations, so
   tuplets and dotted values stay exact under any feel. Set it per track —
   `swing` takes an expression, so `let feel = 63` at global scope and
-  `swing feel` in each track keeps one source of truth. To put a line *behind*
+  `swing feel` in each track keeps one source of truth (or `let ride_feel` /
+  `let lead_feel` for a per-role split, tempo-scaled per `styles.md`). To put a line *behind*
   the beat, use `offset 1/64` (per track, a duration; `offset 0` returns).
   `time_signature` only anchors the bar phase and
   is metadata — it does **not** change note lengths. Details:

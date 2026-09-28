@@ -31,7 +31,11 @@ Worked demo: `examples/feel.wilios`.
 | 70–78   | heavy / shuffle |
 | 100     | max — off-beat collapses to 0 ms |
 
-Set it **per track**, and use the same value on every track. The on/off slot
+Set it **per track**. One value everywhere is the simple default; for a more
+idiomatic feel give the ride/drum track more swing than the lead and comp, and
+lower all of it as tempo rises — see the tempo table in
+[`styles.md`](styles.md#how-to-set-swing). Different values never drift apart:
+swing only moves off-beat onsets, downbeats stay shared. The on/off slot
 count resets at each bar start, anchored by `time_signature` — so the first 8th
 of every bar is always the long slot. `time_signature` does nothing else: it
 does **not** change note or rest lengths.

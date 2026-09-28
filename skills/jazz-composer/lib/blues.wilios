@@ -3,12 +3,15 @@
 //
 //  import "<rel>/skills/jazz-composer/lib/blues.wilios"
 //
-//  STYLE NOTES  (copy the settings into every track)
-//    Tempo   60-180        swing   63-72 (shuffle end)     meter  4/4 (12/8 feel)
-//    Presets lead brass ; comp epiano ; bass ; kick/snare/hihat_c
-//    Form    12-bar:  | I7 | IV7 | I7 | I7 | IV7 | IV7 | I7 | VI7 | ii7 | V7 | I7 VI7 | ii7 V7 |
-//    Devices blue notes (b3, b5), riff-and-answer head, tritone-sub bII7
-//            in the turnaround, walking or two-feel bass
+//  STYLE NOTES  (tempo/meter on every track; swing per role —
+//               see references/styles.md)
+//    Tempo   60-300   swing  slow 70-75 (12/8 feel) ; medium ride 64-70,
+//            lead 58-63 ; up-tempo ride 56-64, lead 52-58      meter  4/4
+//    Presets lead brass ; comp comp_piano ; upright ; ride/hihat_c time,
+//            hihat_c on 2 & 4 ; snare backbeat only for a shuffle
+//    Form    12-bar:  | I7 | IV7 | I7 | v-7 I7 | IV7 | #IVdim7 | I7 | VI7 | ii-7 | V7 | I7 VI7 | ii-7 V7 |
+//    Devices blue notes (b3, b5, b7), riff-and-answer head, IV7-#IVdim7-I7/5,
+//            tritone-sub bII7 in the turnaround, two-feel head, walking solos
 //
 //  Full model: examples/blues_f.wilios . Demo: examples/blues_from_lib.wilios
 // ============================================================

@@ -57,8 +57,11 @@ offset j/64      // humanize, note to note
   ADSR params *do* take expressions, so `let feel = 63` … `swing feel` keeps
   one feel for every track and every phrase `func` that restores it.
 - These settings do **not** propagate between tracks. Restate `tempo`, `swing`,
-  and `time_signature` at the top of **every** `track` block with the same
-  values, or the tracks run at different rates and drift apart.
+  and `time_signature` at the top of **every** `track` block. `tempo` and
+  `time_signature` must match, or the tracks run at different rates and drift
+  apart. `swing` may differ per track (ride above lead, per
+  [`styles.md`](styles.md#how-to-set-swing)) — it only moves off-beat onsets,
+  so downbeats stay aligned.
 - Setting them in `global` scope makes them the default for every track — a
   clean way to keep them in sync — but a track that sets its own overrides the
   default, so be consistent.
