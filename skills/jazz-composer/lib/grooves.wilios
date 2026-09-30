@@ -11,7 +11,7 @@
 //  track(s).
 //
 //      swing_ride(32)                    // 32 bars of ride, one track
-//      kit_swing(32)                     // kick+snare, a second track
+//      kit_swing(32)                     // hi-hat on 2 & 4, a second track
 //      walk_bar(<F1>, <A1>, <C2>, <E1>)  // one walking-bass bar
 // ============================================================
 
@@ -28,23 +28,51 @@ let swing_ride = func(bars) {
     }
 }
 
-// --- kit_swing(bars): kick on 1 & 3, snare on 2 & 4. The one-bar kit
-//     pattern the older examples had to inline — now a real helper.
+// --- kit_swing(bars): hi-hat (foot) closing on 2 and 4 — with swing_ride
+//     on another track this is the swing time-keeping. (Kick 1 & 3 / snare
+//     2 & 4 is a rock backbeat, not swing.)
 let kit_swing = func(bars) {
+    hihat_c()
     let i = 0
     loop (i < bars) {
         i = i + 1
-        kick()  <B1> 1/4   snare() <A3> 1/4   kick() <B1> 1/4   snare() <A3> 1/4
+        rest 1/4 <F5> 1/4   rest 1/4 <F5> 1/4
     }
 }
 
-// --- kit_bossa(bars): straight (do NOT swing) — kick on 1 and the 'and'
-//     of 2, cross-stick snare on 3.
-let kit_bossa = func(bars) {
+// --- kit_feather(bars): "feathered" kick on all four beats. Give it its
+//     own track with a very low `volume` (~15-20) — the track volume is the
+//     feathering (restate `volume` around a single hit for a louder bomb).
+let kit_feather = func(bars) {
+    kick()
     let i = 0
     loop (i < bars) {
         i = i + 1
-        kick() <B1> 1/4   rest 1/8 kick() <B1> 1/8   snare() <A3> 1/4   rest 1/4
+        <B1> 1/4 <B1> 1/4 <B1> 1/4 <B1> 1/4
+    }
+}
+
+// --- kit_bossa(bars): straight (do NOT swing) — kick doubling the surdo /
+//     bass rhythm: 1, &2, 3, &4 (dotted quarter + 8th, twice).
+let kit_bossa = func(bars) {
+    kick()
+    let i = 0
+    loop (i < bars) {
+        i = i + 1
+        <B1> 3/8 <B1> 1/8 <B1> 3/8 <B1> 1/8
+    }
+}
+
+// --- bossa_clave(cycles): the 3-2 bossa clave on cross-stick, straight.
+//     Bar 1: 1, &2, 4 · bar 2: 2, &3. Each cycle is 2 bars. Own track,
+//     low `volume`.
+let bossa_clave = func(cycles) {
+    snare()
+    let i = 0
+    loop (i < cycles) {
+        i = i + 1
+        <A3> 3/8 <A3> 3/8 <A3> 1/4
+        rest 1/4 <A3> 3/8 <A3> 3/8
     }
 }
 
@@ -75,9 +103,10 @@ let two_feel = func(root, fifth, bars) {
     }
 }
 
-// --- bossa_bass2(root, fifth): the two-bar "1 and 3" bossa cell (root on
-//     1, fifth on 3), straight.
+// --- bossa_bass2(root, fifth): two bars of the surdo bass cell, straight —
+//     root on 1, fifth on &2 and 3, root on &4 (anticipating the next bar).
+//     Pass `fifth` BELOW or above the root; both are idiomatic.
 let bossa_bass2 = func(root, fifth) {
-    <root> 1/4 rest 1/4 <fifth> 1/4 rest 1/4
-    <root> 1/4 rest 1/4 <fifth> 1/4 rest 1/4
+    <root> 3/8 <fifth> 1/8 <fifth> 3/8 <root> 1/8
+    <root> 3/8 <fifth> 1/8 <fifth> 3/8 <root> 1/8
 }

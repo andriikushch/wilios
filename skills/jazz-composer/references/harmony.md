@@ -7,12 +7,13 @@ ingredients. Common structures:
 
 ```
 ii–V–I                         Dm7  G7   Cmaj7
+I–VI–ii–V (turnaround)         Cmaj7  A7  Dm7  G7
 iii–VI–ii–V (turnaround)       Em7  A7   Dm7  G7
 tritone sub                    Dm7  Db7  Cmaj7        (Db7 for G7)
-backdoor dominant              Fm7  Bb7  Cmaj7        (bVII7 → I)
+backdoor ii–V                  Fm7  Bb7  Cmaj7        (iv–bVII7 → I)
 secondary dominant             A7 → Dm7 (V/ii)
 dominant chain                 E7  A7   D7   G7  C
-minor ii–V                     Dm7b5  G7b9  Cm
+minor ii–V–i                   Dm7b5  G7b9  Cm6 (or Cm(maj7), Cm7)
 ```
 
 Harmonic rhythm matters as much as the chords: two bars per chord vs. two chords
@@ -22,10 +23,16 @@ sidestep them mid-section to keep motion.
 ## Modal harmony
 
 Distinguish static modality (one center, color from voicing/register/melody),
-modal interchange (borrowing `iv`, `bVI`, `bVII` from the parallel minor),
-pedal harmony, and planed (parallel) chords. If the harmony is static, motion
+pedal harmony, sus-chord harmony, and planed (parallel) chords. The
+characteristic note of the mode (6 in Dorian, #4 in Lydian, b2 in Phrygian)
+should be audible in melody or voicing, and avoid V7–I cadences that pull
+the music back to functional major/minor. If the harmony is static, motion
 has to come from **rhythm, register, melody, and orchestration** — say so and
 build it there.
+
+**Modal interchange** (borrowing `iv`, `bVI`, `bVII7`, `bIII`, `iiø7` from
+the parallel minor) is a *functional* technique — it colors a tonal
+progression, it does not make the piece modal.
 
 ## Chromatic harmony
 
@@ -59,17 +66,20 @@ wilios has no chord symbols. Convert each symbol to an explicit voicing (see
 [`voicings.md`](voicings.md) for the voicing vocabulary), choosing inner voices
 that move by step or common tone from the previous chord.
 
-Worked example — `| Dm7 | G7alt | Cmaj7 |`, comped in the piano's middle
+Worked example — `| Dm7 | G7(b9,b13) | Cmaj7 |`, comped in the piano's middle
 register, one chord per bar:
 
 ```wilios
-// | Dm7 |        rootless: F A C E   (b3 5 b7 9)
+// | Dm7 |          rootless: F A C E   (b3 5 b7 9)
 <F3, A3, C4, E4> 1/1
-// | G7alt |      3 b7 b9 b13 : B F Ab Eb   — F stays, A→Ab, C→B, E→Eb
+// | G7(b9,b13) |   b7 b9 3 b13 : F Ab B Eb   — F stays, A→Ab, C→B, E→Eb
 <F3, Ab3, B3, Eb4> 1/1
-// | Cmaj7 |      3 5 7 9 : E G B D          — F→E, Ab→G, B common, Eb→D
+// | Cmaj7 |        3 5 7 9 : E G B D          — F→E, Ab→G, B common, Eb→D
 <E3, G3, B3, D4> 1/1
 ```
+
+(It is often written `G7alt`, but it has no #9 or b5 — by the policy above,
+name what you actually spell.)
 
 Every voice moves by a half step or holds — that is the point. Write the changes
 as the comment, the notes as the chord, and let the roll (`dump --format roll`)

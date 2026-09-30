@@ -57,8 +57,11 @@ offset j/64      // humanize, note to note
   ADSR params *do* take expressions, so `let feel = 63` … `swing feel` keeps
   one feel for every track and every phrase `func` that restores it.
 - These settings do **not** propagate between tracks. Restate `tempo`, `swing`,
-  and `time_signature` at the top of **every** `track` block with the same
-  values, or the tracks run at different rates and drift apart.
+  and `time_signature` at the top of **every** `track` block. `tempo` and
+  `time_signature` must match, or the tracks run at different rates and drift
+  apart. `swing` may differ per track (ride above lead, per
+  [`styles.md`](styles.md#how-to-set-swing)) — it only moves off-beat onsets,
+  so downbeats stay aligned.
 - Setting them in `global` scope makes them the default for every track — a
   clean way to keep them in sync — but a track that sets its own overrides the
   default, so be consistent.
@@ -70,10 +73,21 @@ notation (`[1 3 5 b7]`). Write the symbol as a `//` comment and spell every
 sounding note: `<G2, F3, B3, E4> 1/2`. `transpose(<chord>, n)` is the only
 transform (it works anywhere, inside a `func` body included).
 
-## No per-note expression
+## Per-note expression is only `volume`
 
-Velocity == the track `volume` for every note on that track. There is no accent,
-ghost note, articulation, or per-note dynamic. Build contrast from register,
+A note's velocity is the track's `volume` at the moment the note is emitted.
+There is no per-note velocity or articulation syntax, but `volume` can be
+restated between notes, so an accent or ghost note is:
+
+```wilios
+volume 40
+<B1> 1/4
+volume 90      // accent ("bomb")
+<B1> 1/4
+volume 40      // back
+```
+
+(`volume` takes a literal int only.) Beyond that, build contrast from register,
 rhythm, density, rests, `pan`, and which preset plays the line.
 
 ## Pitch grammar

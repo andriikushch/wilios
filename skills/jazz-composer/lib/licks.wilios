@@ -14,15 +14,13 @@
 //  a `let` bound inside a body is discarded when the call returns.
 // ============================================================
 
-// --- enclose(t): chromatic upper + lower neighbour into target `t`, as an
-//     8th-note triplet (three 1/12 notes = one beat). The classic bebop
-//     triplet pickup into a target note.
-//     (Written as 1/12 triplets, not 1/16s: under `swing`, notes shorter
-//     than an 8th that aren't tuplets drift the bar's exact position.)
+// --- enclose(t): the two-8th enclosure PICKUP into target `t` — half step
+//     above, then half step below (= one beat). It does NOT play `t`: play
+//     the target yourself on the next beat, so it lands on the beat, which
+//     is the whole point of an enclosure.
 let enclose = func(t) {
-    <transpose(t, 1)> 1/12
-    <transpose(t, -1)> 1/12
-    <t> 1/12
+    <transpose(t, 1)> 1/8
+    <transpose(t, -1)> 1/8
 }
 
 // --- approach_below(t) / approach_above(t): a single chromatic approach
@@ -54,25 +52,30 @@ let arp_min7 = func(root) {
 }
 
 // --- ii_v_i_maj(key): a 2-bar bebop line over  | iim7  V7 |  Imaj7 |
-//     Built from the sub-phrases above — arp up the ii chord, enclose the
-//     3rd of V7, step down, resolve to the 3rd of I. `key` = the I root.
+//     1-b3 of ii, enclose the 3rd of V7 so it lands on beat 3, run down
+//     V7 (3 1 b7 5), resolve by step to the 3rd of I. `key` = the I root.
+//     In C: D F | C A# | B G | F D || E D C - -
 let ii_v_i_maj = func(key) {
-    // bar 1 : iim7 (root = key + 2) for 2 beats, then V7 for 2 beats
-    arp_min7(transpose(key, 2))
-    enclose(transpose(key, 11))                      // into the 3rd of V7
-    <transpose(key, 9)> 1/8  <transpose(key, 7)> 1/8 // 9 -> 5 of V7
+    // bar 1 : iim7 for 2 beats, then V7 for 2 beats
+    <transpose(key, 2)> 1/8  <transpose(key, 5)> 1/8     // 1 b3 of ii
+    enclose(transpose(key, 11))                          // pickup into 3rd of V7
+    <transpose(key, 11)> 1/8 <transpose(key, 7)> 1/8     // 3 1 of V7 (beat 3)
+    <transpose(key, 5)> 1/8  <transpose(key, 2)> 1/8     // b7 5 of V7
     // bar 2 : Imaj7 — land on the 3rd, fall to the root, breathe
     <transpose(key, 4)> 1/8  <transpose(key, 2)> 1/8  <key> 1/4
     rest 1/2
 }
 
 // --- turnaround_maj(key): a 2-bar line over  | I  VI7 | ii  V7 |
-//     one chord every 2 beats. Classic bebop turnaround vocabulary.
+//     one chord every 2 beats; the 3rds of VI7 and V7 land on beat 3.
+//     In C: C E | D C | C# E | G Bb || A F | C A# | B G | F D
 let turnaround_maj = func(key) {
-    arp_maj7(key)                                    // I
-    enclose(transpose(key, 13))                      // into the 3rd of VI7
-    <transpose(key, 9)> 1/8  <transpose(key, 7)> 1/8
-    arp_min7(transpose(key, 2))                      // ii
-    enclose(transpose(key, 11))                      // into the 3rd of V7
-    <transpose(key, 5)> 1/8  <transpose(key, 4)> 1/8
+    <key> 1/8 <transpose(key, 4)> 1/8                    // I
+    enclose(transpose(key, 1))                           // pickup into 3rd of VI7
+    <transpose(key, 1)> 1/8  <transpose(key, 4)> 1/8     // VI7: 3 5
+    <transpose(key, 7)> 1/8  <transpose(key, 10)> 1/8    // VI7: b7 b9
+    <transpose(key, 9)> 1/8  <transpose(key, 5)> 1/8     // ii: 5 b3
+    enclose(transpose(key, 11))                          // pickup into 3rd of V7
+    <transpose(key, 11)> 1/8 <transpose(key, 7)> 1/8     // V7: 3 1
+    <transpose(key, 5)> 1/8  <transpose(key, 2)> 1/8     // V7: b7 5
 }

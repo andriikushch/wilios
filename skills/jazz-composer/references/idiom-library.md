@@ -12,7 +12,7 @@ import "<relative>/skills/jazz-composer/lib/bebop.wilios"
 
 track 1
 tempo 200
-swing 63
+swing 58
 volume 90
 brass()
 bebop_a_line(Bb4)          // an 8-bar line, built from ii-V-I + turnaround licks
@@ -55,20 +55,25 @@ so a flat root gives flat spellings.
 ### `lib/licks.wilios` — melodic bebop idioms
 | helper | plays |
 |---|---|
-| `enclose(t)` | chromatic upper+lower neighbour into `t`, as an 8th-note triplet |
+| `enclose(t)` | the two-8th pickup into `t`: half step above, half step below (one beat). Play `t` yourself on the next beat, so the target lands **on** the beat |
 | `approach_below(t)` / `approach_above(t)` | one chromatic approach note + `t`, two 8ths |
 | `arp7(root)` / `arp_maj7(root)` / `arp_min7(root)` | arpeggio through the 7th, four 8ths |
-| `ii_v_i_maj(key)` | a 2-bar bebop line over `\| iim7 V7 \| Imaj7 \|` (built from the above) |
-| `turnaround_maj(key)` | a 2-bar line over `\| I VI7 \| ii V7 \|` |
+| `ii_v_i_maj(key)` | a 2-bar bebop line over `\| iim7 V7 \| Imaj7 \|` — enclosure lands on the 3rd of V7 on beat 3, resolves to the 3rd of I |
+| `turnaround_maj(key)` | a 2-bar line over `\| I VI7 \| ii V7 \|`, enclosing the 3rd of VI7 and of V7 |
 
 ### `lib/comp.wilios` — comping rhythm cells (one 4/4 bar each, voicing `v`)
-`charleston(v)` · `push(v)` (anticipation into the next bar) · `stab(v)` (one
-'and'-of-2 hit) · `bossa_comp2(v)` (two-bar clave figure, straight).
+`charleston(v)` (beat 1 + 'and' of 2) · `push(v)` (anticipation into the next
+bar) · `stab(v)` (one 'and'-of-2 hit) · `bossa_comp2(v)` (two-bar 3-2 bossa
+clave figure: bar 1 on 1, &2, 4; bar 2 on 2, &3 — straight).
 
 ### `lib/grooves.wilios` — drums + bass (imports the FM presets)
-`swing_ride(bars)` · `kit_swing(bars)` · `kit_bossa(bars)` · `kit_shuffle(bars)`
-· `walk_bar(n1, n2, n3, n4)` (one walking-bass bar from four pitches) ·
-`two_feel(root, fifth, bars)` · `bossa_bass2(root, fifth)` (two-bar cell).
+`swing_ride(bars)` (spang-a-lang) · `kit_swing(bars)` (hi-hat on 2 and 4) ·
+`kit_feather(bars)` (kick on all four — put it on its own track at very low
+`volume`) · `kit_bossa(bars)` (kick doubling the surdo bass rhythm) ·
+`bossa_clave(cycles)` (3-2 clave on cross-stick, 2 bars per cycle) ·
+`kit_shuffle(bars)` · `walk_bar(n1, n2, n3, n4)` (one walking-bass bar from four
+pitches) · `two_feel(root, fifth, bars)` · `bossa_bass2(root, fifth)` (two bars
+of the surdo cell: root on 1, 5th on &2 and 3, root on &4).
 
 ### Style packs — `lib/{bebop,bossa,blues,modal}.wilios`
 Each opens with a `//` header block of that style's tempo range / `swing` /
@@ -77,10 +82,13 @@ idiom files above, and adds signature helpers:
 
 | pack | helpers |
 |---|---|
-| `bebop.wilios` | `bebop_a_line(key)` (8-bar A line), `bebop_a_bass(key, cycles)` (walking I-VI-ii-V) |
-| `blues.wilios` | `blues_walk12(key)` (12-bar walking bass), `blues_riff4(key)` / `blues_riff_head(key)` |
+| `bebop.wilios` | `bebop_a_line(key)` (8-bar A line: `ii V \| I \| I VI \| ii V` twice), `bebop_a_bass(key, cycles)` (walking `I \| VI7 \| ii7 \| V7`, one chord per bar — real rhythm changes moves twice as fast, two chords per bar) |
+| `blues.wilios` | `blues_walk12(key)` (12-bar walking bass over the jazz blues in `styles.md`), `blues_riff4(key)` / `blues_riff2(key)` / `blues_riff_head(key)` (riff on I, bars 5–6 up a 4th over IV, back home) |
 | `bossa.wilios` | `bossa_bass_n(root, fifth, n)`, `bossa_comp_n(v, n)`, `bossa_melody_frag(key)` |
-| `modal.wilios` | `so_what_vamp(bars)` (quartal answer figure), `modal_pedal(root, bars)`, `dorian_frag(key)` |
+| `modal.wilios` | `so_what_vamp(bars)` (the two-chord "So What" answer: E A D G B → D G C F A), `modal_pedal(root, bars)`, `dorian_frag(key)` |
+
+`bebop_a_line` and `bebop_a_bass` imply different chords bar by bar (the line
+starts on ii–V, the bass on I) — don't layer them unedited.
 
 ## Worked demos
 
