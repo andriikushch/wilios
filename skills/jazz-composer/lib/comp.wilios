@@ -15,7 +15,7 @@
 
 // --- charleston(v): beat 1 and the 'and' of 2 — the staple comp figure.
 let charleston = func(v) {
-    <v> 1/8 rest 3/8   rest 1/8 <v> 1/8 rest 1/4
+    <v> 1/8 rest 1/4 <v> 1/8 rest 1/2
 }
 
 // --- push(v): a single anticipation on the 'and' of 4, nothing before it.
@@ -30,9 +30,8 @@ let stab = func(v) {
     rest 3/8 <v> 1/8 rest 1/2
 }
 
-// --- bossa_comp2(v): the two-bar clave comp figure (straight, do NOT
-//     swing) — dotted quarter / dotted quarter / quarter, then the
-//     displaced answer bar.
+// --- bossa_comp2(v): the two-bar 3-2 bossa clave as a comp figure
+//     (straight, do NOT swing) — bar 1 on 1, &2, 4; bar 2 on 2, &3.
 let bossa_comp2 = func(v) {
     <v> 1/4. <v> 1/4. <v> 1/4
     rest 1/4 <v> 1/4. <v> 1/4.

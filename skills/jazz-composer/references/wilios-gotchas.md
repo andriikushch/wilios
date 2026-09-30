@@ -73,10 +73,21 @@ notation (`[1 3 5 b7]`). Write the symbol as a `//` comment and spell every
 sounding note: `<G2, F3, B3, E4> 1/2`. `transpose(<chord>, n)` is the only
 transform (it works anywhere, inside a `func` body included).
 
-## No per-note expression
+## Per-note expression is only `volume`
 
-Velocity == the track `volume` for every note on that track. There is no accent,
-ghost note, articulation, or per-note dynamic. Build contrast from register,
+A note's velocity is the track's `volume` at the moment the note is emitted.
+There is no per-note velocity or articulation syntax, but `volume` can be
+restated between notes, so an accent or ghost note is:
+
+```wilios
+volume 40
+<B1> 1/4
+volume 90      // accent ("bomb")
+<B1> 1/4
+volume 40      // back
+```
+
+(`volume` takes a literal int only.) Beyond that, build contrast from register,
 rhythm, density, rests, `pan`, and which preset plays the line.
 
 ## Pitch grammar

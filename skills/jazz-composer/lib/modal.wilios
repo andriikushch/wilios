@@ -5,16 +5,15 @@
 //
 //  STYLE NOTES  (tempo/meter on every track; swing per role —
 //               see references/styles.md)
-//    Tempo   60-320   swing ride 60-68, lead 54-62, or 50 for straight vamps
-//            meter 4/4, 3/4 (often a 6/8 feel)
+//    Tempo   60-320     swing ride 60-68, lead 54-62, or 50 for
+//            straight-8th vamps      meter 4/4, 3/4 (often a 6/8 feel)
 //    Presets lead brass/strings ; comp comp_piano or epiano with QUARTAL
-//            voicings ; upright pedal or walk ; ride/hihat_c time
-//    Form    long sections on one mode (8-16 bars); AABA with the bridge a
-//            half step up; 2-chord vamps; sus4-based forms
-//    Devices So What voicing, parallel quartal comping, pedal points,
-//            pentatonic superimposition, side-slipping, wide leaps,
-//            intensity from register / density / rhythm since the harmony
-//            is static
+//            voicings ; upright pedal or walking
+//    Form    long sections on one mode (8-16 bars), 2-chord vamps; model:
+//            32-bar AABA, A = D Dorian, B = Eb Dorian
+//    Devices sustained centres, pentatonic/modal melody, wide intervallic
+//            leaps, motion from register / rhythm / orchestration since
+//            the harmony is static
 //
 //  Demo: examples/modal_from_lib.wilios
 // ============================================================
@@ -22,13 +21,16 @@
 import "grooves.wilios"
 import "theory.wilios"
 
-// --- so_what_vamp(bars): the "So What" comp answer figure — a quartal
-//     Dm11 (E A D G C) shoved up a half step to Ebm11 on the 'and' of 2.
+// --- so_what_vamp(bars): the two-chord "So What" answer over D Dorian —
+//     the So What voicing E A D G B (three 4ths + a major 3rd), then the
+//     same shape a diatonic step down, D G C F A. Placed on beat 3 and
+//     the 'and' of 3. (The half step up to Eb Dorian is the bridge's key
+//     change, not part of this figure.)
 let so_what_vamp = func(bars) {
     let i = 0
     loop (i < bars) {
         i = i + 1
-        rest 1/2   <E3, A3, D4, G4, C5> 1/8 <F3, Bb3, Eb4, Ab4, Db5> 1/8   rest 1/4
+        rest 1/2   <E3, A3, D4, G4, B4> 1/8 <D3, G3, C4, F4, A4> 1/8   rest 1/4
     }
 }
 

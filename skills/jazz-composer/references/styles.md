@@ -49,7 +49,8 @@ tempo range.
   **meter** 4/4
 - **Presets** lead `brass` (often two horns in unison on the head); `upright`
   walking in 4; drums `ride` carries the time, `hihat_c` on 2 and 4, `kick`
-  very soft with occasional off-beat accents ("bombs"), `snare` sparse
+  feathered on its own very quiet track (for an off-beat "bomb", bump
+  `volume` before that hit and restore it after), `snare` sparse
   comping; optional `comp_piano` with short, sparse stabs
 - **Form** 32-bar AABA (especially rhythm changes), 12-bar blues, and
   contrafacts (new melody over a standard's changes); head – solos – (trading
@@ -60,10 +61,11 @@ tempo range.
   beat), chromatic approach tones, enclosures (upper + lower neighbor into a
   target), altered dominants (b9, #9, b13) resolving to the next chord,
   arpeggios reaching into the upper structure (9, 11, 13), phrases that start
-  and end off the beat with accented upbeats. Model: `examples/bebop_trio.wilios`.
+  and end off the beat, the upbeat 8ths leading into the next target.
+  Model: `examples/bebop_trio.wilios`.
 - **Library** `import "skills/jazz-composer/lib/bebop.wilios"` — `bebop_a_line`,
   `bebop_a_bass`, plus `licks.wilios` (`ii_v_i_maj`, `turnaround_maj`, `enclose`,
-  `arp7`) and `grooves.wilios` (`swing_ride`, `kit_swing`). Demo:
+  `arp7`) and `grooves.wilios` (`swing_ride`, `kit_swing`, `kit_feather`). Demo:
   `examples/bebop_from_lib.wilios`. See `idiom-library.md`.
 
 ## Cool jazz
@@ -164,8 +166,9 @@ tempo range.
   longer through-composed forms). Take the length from the tune.
 - **Devices**
   - **Bass (surdo)**: root on 1 (dotted quarter), 5th on the and-of-2 (short
-    8th, can be ghosted), 5th on 3 (dotted quarter), and-of-4 anticipates the
-    next bar's root. Beat 3 is the strong beat. Roots and 5ths only.
+    8th — the surdo mutes it; ghost it with a lower `volume` on that note),
+    5th on 3 (dotted quarter), and-of-4 anticipates the next bar's root.
+    Beat 3 is the strong beat. Roots and 5ths only.
   - **Clave (3-2)**: two bars of 4/4 grouped 3+3+4+3+3 eighths — bar 1 on 1,
     and-of-2, 4; bar 2 on 2, and-of-3. It is similar to son clave; only the
     last stroke moves. Use it on cross-stick and let the comp line up with it.
@@ -177,12 +180,13 @@ tempo range.
     dominants (`7b9`, `7#11`, `7b13`, `7#5`), diminished passing chords,
     chromatic descending inner voices, half-step key shifts.
   - **Melody**: smooth, often stepwise or repeated-note, syncopated
-    anticipations, frequently resting on 9ths, 11ths and 13ths.
+    anticipations, frequently resting on extensions (9, 13; 11 on minor
+    chords).
   - `pan` the comp slightly off-center.
 - **Library** `import "skills/jazz-composer/lib/bossa.wilios"` — `bossa_bass_n`,
-  `bossa_comp_n`, `bossa_melody_frag`, plus `grooves.wilios` (`kit_bossa`) and
-  `comp.wilios` (`bossa_comp2`). Demo: `examples/bossa_from_lib.wilios`. See
-  `idiom-library.md`.
+  `bossa_comp_n`, `bossa_melody_frag`, plus `grooves.wilios` (`kit_bossa`,
+  `bossa_clave`) and `comp.wilios` (`bossa_comp2`). Demo:
+  `examples/bossa_from_lib.wilios`. See `idiom-library.md`.
 
 ```wilios
 // bossa bass, one bar per chord (Fmaj7):
@@ -191,8 +195,9 @@ tempo range.
 <F1> 3/8 <C2> 1/8 <C2> 3/8 <F1> 1/8
 <F1> 3/8 <C2> 1/8 <C2> 3/8 <F1> 1/8
 
-// bossa clave 3-2 on cross-stick (snare at <A3>), two bars: 3+3+4+3+3 eighths
-<A3> 3/8 <A3> 3/8 <A3> 1/2 <A3> 3/8 <A3> 3/8
+// bossa clave 3-2 on cross-stick (snare at <A3>), bar 1: 1, &2, 4 · bar 2: 2, &3
+<A3> 3/8 <A3> 3/8 <A3> 1/4
+rest 1/4 <A3> 3/8 <A3> 3/8
 ```
 
 ## Blues (jazz blues)

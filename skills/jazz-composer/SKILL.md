@@ -96,8 +96,11 @@ the exhaustive list with workarounds is in
   is metadata — it does **not** change note lengths. Details:
   [`references/rhythm-and-feel.md`](references/rhythm-and-feel.md).
 
-- **No per-note dynamics.** Velocity equals the track `volume`. Get contrast
-  from register, rhythm, note density, rests, `pan`, and preset choice.
+- **Dynamics come from `volume`.** Each note takes the track's *current*
+  `volume` as its velocity — there is no per-note velocity syntax, but
+  restating `volume` before a note (and restoring it after) gives an accent or
+  ghost note. Otherwise get contrast from register, rhythm, note density,
+  rests, `pan`, and preset choice.
 
 - **Presets** come from `import`ing the FM library (path is relative to the
   `.wilios` file — `../lib/lib.wilios` from the repo `examples/` dir). 13 of

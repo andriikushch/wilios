@@ -4,15 +4,17 @@
 //  import "<rel>/skills/jazz-composer/lib/bossa.wilios"
 //
 //  STYLE NOTES  (copy the settings into every track)
-//    Tempo   110-160 (felt in 2)   swing 50 — STRAIGHT 8ths, do NOT swing   meter 4/4
+//    Tempo   110-160, felt in 2    swing 50 — STRAIGHT 8ths, do NOT swing
+//    Meter   4/4
 //    Presets lead brass (soft) / epiano ; comp comp_piano or epiano
-//            (nylon-guitar style, rootless, gentle) ; upright root-5th ;
-//            snare cross-stick clave, hihat_c soft 8ths, kick = surdo
-//    Form    32-bar AABA / ABAC common, but take the length from the tune
-//    Devices surdo bass (1, &2, 3, &4 anticipation), 3-2 bossa clave
-//            (1, &2, 4 | 2, &3), anticipated chord changes, maj7 / 6/9 /
-//            m7 / m7b5 plus colored dominants, singable melody resting on
-//            9ths/11ths/13ths, pan the comp slightly off-centre
+//            (rootless, gentle) ; upright ; drums: kit_bossa (kick = surdo),
+//            bossa_clave (cross-stick), soft hihat_c 8ths
+//    Form    take it from the tune — 32-bar AABA/ABAC is common, but many
+//            classics are irregular (e.g. 40 bars with a 16-bar bridge)
+//    Devices bass root/5th in the surdo rhythm (1, &2, 3, &4), comp locked
+//            to the 3-2 clave, changes anticipated on the &4, maj7/6-9/m7/
+//            m7b5 plus altered dominants and diminished passing chords,
+//            smooth syncopated melody, pan the comp slightly off-centre
 //
 //  Demo: examples/bossa_from_lib.wilios
 // ============================================================
@@ -20,8 +22,8 @@
 import "comp.wilios"
 import "grooves.wilios"
 
-// --- bossa_bass_n(root, fifth, n): `n` two-bar bossa bass cells (root on
-//     1, fifth on 3), straight.
+// --- bossa_bass_n(root, fifth, n): `n` two-bar surdo bass cells (root on
+//     1 and &4, fifth on &2 and 3), straight.
 let bossa_bass_n = func(root, fifth, n) {
     let i = 0
     loop (i < n) {

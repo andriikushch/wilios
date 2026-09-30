@@ -53,7 +53,7 @@ let scale_bebop_dom = func(r) {
 let scale_bebop_maj = func(r) {
     return [r, transpose(r, 2), transpose(r, 4), transpose(r, 5), transpose(r, 7), transpose(r, 8), transpose(r, 9), transpose(r, 11)]
 }
-// 1 b3 4 b5 5 b7 — minor blues
+// 1 b3 4 b5 5 b7 — the blues scale
 let scale_blues = func(r) {
     return [r, transpose(r, 3), transpose(r, 5), transpose(r, 6), transpose(r, 7), transpose(r, 10)]
 }

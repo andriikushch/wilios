@@ -26,19 +26,26 @@ Worked demo: `examples/feel.wilios`.
 | `swing` | feel |
 |---------|------|
 | 50      | straight (default) |
-| 58–62   | light / bright swing |
-| 63–68   | medium jazz (`67` ≈ classic ⅔ + ⅓; at 120 BPM = 335 ms + 165 ms) |
-| 70–78   | heavy / shuffle |
+| 52–58   | fast swing (above ~220 bpm the 8ths are nearly even) |
+| 58–64   | medium-up / light swing |
+| 64–70   | medium jazz (`67` ≈ triplet ⅔ + ⅓; at 120 BPM = 335 ms + 165 ms) |
+| 70–78   | slow swing, heavy shuffle, 12/8 feel |
 | 100     | max — off-beat collapses to 0 ms |
 
-Set it **per track**. One value everywhere is the simple default; for a more
-idiomatic feel give the ride/drum track more swing than the lead and comp, and
-lower all of it as tempo rises — see the tempo table in
-[`styles.md`](styles.md#how-to-set-swing). Different values never drift apart:
-swing only moves off-beat onsets, downbeats stay shared. The on/off slot
-count resets at each bar start, anchored by `time_signature` — so the first 8th
-of every bar is always the long slot. `time_signature` does nothing else: it
-does **not** change note or rest lengths.
+**Tempo sets the value more than style does.** On real recordings the swing
+ratio falls as tempo rises: well above 2:1 at ballad tempos, about 2:1 only
+around medium tempo, and close to straight at very fast tempos. A bebop line at
+280 bpm with `swing 66` sounds stiff and corny; use ~54–58. Per-style, per-role
+numbers: the tempo table in [`styles.md`](styles.md#how-to-set-swing).
+
+Set it **per track**, and give the ride cymbal a bit more swing than the horn
+and comp lines (e.g. ride `66`, lead `60` at 150 bpm) — on records the drummer's
+ride is swung harder than the soloist's 8ths. Walking bass plays quarters, so
+its value rarely matters. Different values never drift apart: swing only moves
+off-beat onsets, downbeats stay shared. The on/off slot count resets at each bar
+start, anchored by `time_signature` — so the first 8th of every bar is always
+the long slot. `time_signature` does nothing else: it does **not** change note
+or rest lengths.
 
 To write a straight-8ths bridge inside a swung tune, drop `swing 50` before it
 and restore the swing value after.
@@ -50,11 +57,13 @@ rest/chord sequences; keep the voicing thin (see [`voicings.md`](voicings.md)).
 
 ```wilios
 // "Charleston" — beat 1, and the 'and' of 2
-<F3, A3, C4, E4> 1/8 rest 3/8   rest 1/8 <F3, A3, C4, E4> 1/8 rest 1/4
+<F3, A3, C4, E4> 1/8 rest 1/4 <F3, A3, C4, E4> 1/8 rest 1/2
 // push into the bar — 'and' of 4 anticipates the next chord
 rest 1/2 rest 1/4 rest 1/8 <F3, Ab3, B3, Eb4> 1/8
 // sparse: one stab per bar on the 'and' of 2
 rest 3/8 <E3, G3, B3, D4> 1/8 rest 1/2
+// reverse Charleston — 'and' of 1, then beat 3
+rest 1/8 <F3, A3, C4, E4> 1/8 rest 1/4 <F3, A3, C4, E4> 1/8 rest 3/8
 ```
 
 Each of those lines is exactly one 4/4 bar. Vary which cell you use bar to bar;
@@ -74,15 +83,16 @@ Construction per bar over chord X → next chord Y:
    above / 2nd below.
 
 ```wilios
-// | F7            -> Bb7 |     F  A  C  (B = chromatic approach to Bb)
+// | F7            -> Bb7 |     F  A  C, then B = chromatic approach from above
 <F1> 1/4 <A1> 1/4 <C2> 1/4 <B1> 1/4
-// | Bb7           -> F7 |      Bb D  F  (Gb -> F, or use C -> ... here Ab->G->Gb chromatic)
-<Bb1> 1/4 <D2> 1/4 <F2> 1/4 <Gb2> 1/4
-// | Dm7    G7 |   two chords in the bar: D F | G B
-<D2> 1/4 <F1> 1/4 <G1> 1/4 <B1> 1/4
+// | Bb7           -> F7 |      Bb Ab G, then Gb = chromatic approach from above
+<Bb1> 1/4 <Ab1> 1/4 <G1> 1/4 <Gb1> 1/4
+// | Dm7    G7 |   two chords in the bar: D A | G B  (B leads up to C)
+<D2> 1/4 <A1> 1/4 <G1> 1/4 <B1> 1/4
 ```
 
-Keep the line inside roughly `E1`–`G2`. Model: `a_bass7` /`bridge_bass` in
+Keep the line inside roughly `E1`–`D3`; going above `G2` for a bar or two
+is normal and adds lift. Model: `a_bass7` /`bridge_bass` in
 `examples/bebop_trio.wilios`.
 
 ## Drum patterns
@@ -107,24 +117,48 @@ loop (r < 12) {
 }
 ```
 
-Kick + snare on a second track (the preset is re-selected per note — fine for a
-kit line, as `examples/bebop_trio.wilios` track 4 does):
+In swing the ride carries the time; the hi-hat (played with the foot) closes
+on **2 and 4**; the kick is either silent or "feathered" very softly on all four
+beats; the snare comps sparsely. Kick on 1 & 3 with snare on 2 & 4 is a rock
+backbeat — do not use it for swing.
+
+Hi-hat on 2 and 4, as its own track:
 
 ```wilios
 track 4
 tempo 132
 swing 66
-volume 48
+volume 45
+hihat_c()
 let k = 0
 loop (k < 12) {
     k = k + 1
-    kick() <B1> 1/4   snare() <A3> 1/4   kick() <B1> 1/4   snare() <A3> 1/4
+    rest 1/4 <F5> 1/4 rest 1/4 <F5> 1/4
 }
 ```
 
-The one-bar kit pattern can also be factored into a global `kit()` helper that
-calls `kick()` / `snare()` and called from the loop — inlining as above is just
-as valid and keeps the whole bar visible in one place.
+Feathered kick: a separate track at very low `volume`, four quarters per bar
+(for an occasional "bomb", raise `volume` before that hit and drop it back
+after). Snare comping: a third track with a few
+off-beat hits (e.g. the 'and' of 2, the 'and' of 4 leading into a new section),
+varied bar to bar.
+
+```wilios
+track 5
+tempo 132
+swing 66
+volume 18
+kick()
+let f = 0
+loop (f < 12) {
+    f = f + 1
+    <B1> 1/4 <B1> 1/4 <B1> 1/4 <B1> 1/4
+}
+```
+
+These parts can also be factored into global helpers and called from the loop
+— inlining as above is just as valid and keeps the whole bar visible in one
+place.
 
 ## Odd meters and tuplets
 
